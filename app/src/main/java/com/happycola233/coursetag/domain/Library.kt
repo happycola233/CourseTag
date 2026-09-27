@@ -101,7 +101,8 @@ fun courseSummaries(data: AppData, library: Library): List<CourseSummary> {
         CourseSummary(name = name, course = null, photoCount = count, linkedToSchedule = false)
     }
     return (saved + unsaved).sortedWith(
-        compareByDescending<CourseSummary> { it.course?.lastUsedAt ?: 0 }
+        // 比较键必须统一为 Long，避免未保存课程的默认值被装箱成 Int。
+        compareByDescending<CourseSummary> { it.course?.lastUsedAt ?: 0L }
             .thenByDescending { it.photoCount }
             .thenBy { it.name },
     )
