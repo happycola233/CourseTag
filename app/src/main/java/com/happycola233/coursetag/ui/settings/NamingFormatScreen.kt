@@ -74,7 +74,7 @@ fun NamingFormatScreen(viewModel: AppViewModel, navigator: Navigator) {
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
             TopAppBar(
-                title = { Text("命名格式") },
+                title = { Text("命名格式", fontWeight = FontWeight.Bold) },
                 navigationIcon = { BackButton(navigator::back) },
                 colors = pageTopBarColors(),
             )

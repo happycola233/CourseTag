@@ -84,7 +84,7 @@ fun RenamePreviewScreen(viewModel: AppViewModel, navigator: Navigator) {
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
             TopAppBar(
-                title = { Text("确认重命名") },
+                title = { Text("确认重命名", fontWeight = FontWeight.Bold) },
                 navigationIcon = { BackButton(navigator::back) },
                 colors = pageTopBarColors(),
             )

@@ -13,7 +13,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonGroupDefaults
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -47,13 +46,13 @@ import com.happycola233.coursetag.ui.AppViewModel
 import com.happycola233.coursetag.ui.MediaAccess
 import com.happycola233.coursetag.ui.Navigator
 import com.happycola233.coursetag.ui.components.GroupGap
+import com.happycola233.coursetag.ui.components.CollapsingTopBar
 import com.happycola233.coursetag.ui.components.GroupedItem
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
 import com.happycola233.coursetag.ui.components.SectionLabel
 import com.happycola233.coursetag.ui.components.canRenameWithoutConfirmation
 import com.happycola233.coursetag.ui.components.openAppSettings
 import com.happycola233.coursetag.ui.components.rememberMediaManagementRequest
-import com.happycola233.coursetag.ui.components.pageTopBarColors
 import com.happycola233.coursetag.ui.components.supportsMediaManagement
 import com.happycola233.coursetag.ui.navigation.HistoryRoute
 import com.happycola233.coursetag.ui.navigation.LicensesRoute
@@ -95,10 +94,9 @@ fun SettingsScreen(viewModel: AppViewModel, navigator: Navigator) {
         contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text("设置") },
-                scrollBehavior = scrollBehavior,
-                colors = pageTopBarColors(),
+            CollapsingTopBar(
+                title = "设置",
+                state = scrollBehavior.state,
             )
         },
     ) { padding ->

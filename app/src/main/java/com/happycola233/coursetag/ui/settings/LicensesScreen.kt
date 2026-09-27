@@ -21,6 +21,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
@@ -58,7 +59,7 @@ fun LicensesScreen(navigator: Navigator) {
         containerColor = AppSurfaces.page,
         topBar = {
             TopAppBar(
-                title = { Text("开源许可") },
+                title = { Text("开源许可", fontWeight = FontWeight.Bold) },
                 navigationIcon = { BackButton(navigator::back) },
                 colors = pageTopBarColors(),
             )

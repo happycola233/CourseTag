@@ -39,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -98,7 +99,7 @@ fun SmartTagScreen(viewModel: AppViewModel, navigator: Navigator) {
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
             MediumFlexibleTopAppBar(
-                title = { Text("课上照片") },
+                title = { Text("课上照片", fontWeight = FontWeight.Bold) },
                 subtitle = { Text("按课程表识别 · ${groups.size} 节课") },
                 navigationIcon = { BackButton(navigator::back) },
                 actions = {

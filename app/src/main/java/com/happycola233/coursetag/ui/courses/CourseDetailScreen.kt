@@ -43,6 +43,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -124,7 +125,7 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
         topBar = {
             if (selecting) {
                 TopAppBar(
-                    title = { Text("已选择 ${selection.size} 张") },
+                    title = { Text("已选择 ${selection.size} 张", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = { selection = emptySet() }) { Icon(Symbols.Close, contentDescription = "取消选择") }
                     },
@@ -132,7 +133,7 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
                 )
             } else {
                 MediumFlexibleTopAppBar(
-                    title = { Text(name) },
+                    title = { Text(name, fontWeight = FontWeight.Bold) },
                     subtitle = { Text(if (entries.isEmpty()) "暂无照片" else "${formatCount(entries.size)} 张照片") },
                     navigationIcon = { BackButton(navigator::back) },
                     actions = {

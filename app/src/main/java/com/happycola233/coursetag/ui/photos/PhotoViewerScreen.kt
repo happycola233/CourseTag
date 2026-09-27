@@ -42,6 +42,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -118,7 +119,7 @@ fun PhotoViewerScreen(photoId: Long, viewModel: AppViewModel, navigator: Navigat
             TopAppBar(
                 title = {
                     Column {
-                        Text(current.photo.name, maxLines = 1, overflow = TextOverflow.MiddleEllipsis)
+                        Text(current.photo.name, maxLines = 1, overflow = TextOverflow.MiddleEllipsis, fontWeight = FontWeight.Bold)
                         if (entries.size > 1) {
                             Text(
                                 "${pagerState.currentPage + 1} / ${entries.size}",

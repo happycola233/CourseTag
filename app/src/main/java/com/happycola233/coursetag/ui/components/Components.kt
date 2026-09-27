@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -80,7 +81,7 @@ fun GroupedItem(
     val colors = ListItemDefaults.segmentedColors(containerColor = AppSurfaces.card)
     val leadingContent: (@Composable () -> Unit)? = leading ?: icon?.let { { Icon(it, contentDescription = null) } }
     val supportingContent: (@Composable () -> Unit)? = supporting?.let { { Text(it) } }
-    val content: @Composable () -> Unit = { Text(headline) }
+    val content: @Composable () -> Unit = { Text(headline, fontWeight = FontWeight.Bold) }
     if (onClick != null) {
         SegmentedListItem(
             onClick = onClick,
@@ -90,6 +91,7 @@ fun GroupedItem(
             leadingContent = leadingContent,
             trailingContent = trailing,
             supportingContent = supportingContent,
+            verticalAlignment = Alignment.CenterVertically,
             colors = colors,
             content = content,
         )
@@ -101,6 +103,7 @@ fun GroupedItem(
             leadingContent = leadingContent,
             trailingContent = trailing,
             supportingContent = supportingContent,
+            verticalAlignment = Alignment.CenterVertically,
             colors = colors,
             content = content,
         )

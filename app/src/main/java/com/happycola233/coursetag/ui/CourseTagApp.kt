@@ -4,17 +4,9 @@ import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.ContentTransform
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
@@ -26,15 +18,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.IntOffset
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation3.runtime.NavKey
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
-import androidx.navigation3.runtime.rememberSaveableStateHolderNavEntryDecorator
-import androidx.navigation3.ui.NavDisplay
-import androidx.navigationevent.NavigationEvent
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
 import com.happycola233.coursetag.ui.components.mediaAccess
 import com.happycola233.coursetag.ui.courses.CourseDetailScreen
@@ -48,6 +36,7 @@ import com.happycola233.coursetag.ui.navigation.NamingFormatRoute
 import com.happycola233.coursetag.ui.navigation.PhotoViewerRoute
 import com.happycola233.coursetag.ui.navigation.RenamePreviewRoute
 import com.happycola233.coursetag.ui.navigation.SmartTagRoute
+import com.happycola233.coursetag.ui.navigation.AppNavigationDisplay
 import com.happycola233.coursetag.ui.photos.PhotoViewerScreen
 import com.happycola233.coursetag.ui.rename.ApplyProgressDialog
 import com.happycola233.coursetag.ui.rename.RenameFailuresDialog
@@ -137,38 +126,10 @@ private suspend fun showMessage(host: SnackbarHostState, event: UiEvent.Message,
 
 @Composable
 private fun AppNavDisplay(backStack: MutableList<NavKey>, navigator: Navigator, viewModel: AppViewModel) {
-    val spatial = MaterialTheme.motionScheme.defaultSpatialSpec<IntOffset>()
-    val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-    val fastEffects = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
     Box(Modifier.fillMaxSize().background(AppSurfaces.page)) {
-        NavDisplay(
+        AppNavigationDisplay(
             backStack = backStack,
             onBack = navigator::back,
-            entryDecorators = listOf(rememberSaveableStateHolderNavEntryDecorator()),
-            transitionSpec = {
-                ContentTransform(
-                    slideInHorizontally(spatial) { it / 4 } + fadeIn(effects),
-                    slideOutHorizontally(spatial) { -it / 12 } + fadeOut(fastEffects),
-                )
-            },
-            popTransitionSpec = {
-                ContentTransform(
-                    slideInHorizontally(spatial) { -it / 12 } + fadeIn(effects),
-                    slideOutHorizontally(spatial) { it / 4 } + fadeOut(fastEffects),
-                    targetContentZIndex = -1f,
-                )
-            },
-            // 预测性返回：当前页随手势缩小并向返回方向移出，下层页面同步浮现。
-            predictivePopTransitionSpec = { swipeEdge ->
-                val direction = if (swipeEdge == NavigationEvent.EDGE_RIGHT) -1 else 1
-                ContentTransform(
-                    scaleIn(initialScale = 0.96f) + fadeIn(effects),
-                    scaleOut(targetScale = 0.9f) +
-                        slideOutHorizontally { direction * it / 8 } +
-                        fadeOut(),
-                    targetContentZIndex = -1f,
-                )
-            },
             entryProvider = entryProvider {
                 entry<HomeRoute> { HomeScreen(viewModel, navigator) }
                 entry<SmartTagRoute> { SmartTagScreen(viewModel, navigator) }

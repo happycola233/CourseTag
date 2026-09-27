@@ -29,7 +29,6 @@ import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.PlainTooltip
@@ -51,6 +50,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -63,6 +63,7 @@ import com.happycola233.coursetag.ui.AppViewModel
 import com.happycola233.coursetag.ui.MediaAccess
 import com.happycola233.coursetag.ui.Navigator
 import com.happycola233.coursetag.ui.components.EmptyState
+import com.happycola233.coursetag.ui.components.CollapsingTopBar
 import com.happycola233.coursetag.ui.components.GroupedItem
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
 import com.happycola233.coursetag.ui.components.openAppSettings
@@ -123,7 +124,7 @@ fun PhotosScreen(viewModel: AppViewModel, navigator: Navigator) {
         topBar = {
             if (selecting) {
                 TopAppBar(
-                    title = { Text("已选择 ${selection.size} 张") },
+                    title = { Text("已选择 ${selection.size} 张", fontWeight = FontWeight.Bold) },
                     navigationIcon = {
                         IconButton(onClick = viewModel::clearSelection) { Icon(Symbols.Close, contentDescription = "取消选择") }
                     },
@@ -136,11 +137,10 @@ fun PhotosScreen(viewModel: AppViewModel, navigator: Navigator) {
                     colors = pageTopBarColors(),
                 )
             } else {
-                LargeFlexibleTopAppBar(
-                    title = { Text("照片") },
-                    subtitle = currentLibrary?.takeIf { access != MediaAccess.Denied }?.let { { Text(librarySummary(it)) } },
-                    scrollBehavior = scrollBehavior,
-                    colors = pageTopBarColors(),
+                CollapsingTopBar(
+                    title = "照片",
+                    subtitle = currentLibrary?.takeIf { access != MediaAccess.Denied }?.let(::librarySummary),
+                    state = scrollBehavior.state,
                 )
             }
         },

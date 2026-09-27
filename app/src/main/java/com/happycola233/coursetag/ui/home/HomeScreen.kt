@@ -1,15 +1,10 @@
 package com.happycola233.coursetag.ui.home
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -49,8 +43,6 @@ fun HomeScreen(viewModel: AppViewModel, navigator: Navigator) {
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     val selecting = tab == HomeTab.Photos && selection.isNotEmpty()
     val haptics = LocalHapticFeedback.current
-
-    BackHandler(enabled = tab != HomeTab.Photos) { tab = HomeTab.Photos }
 
     Scaffold(
         containerColor = AppSurfaces.page,
@@ -82,23 +74,15 @@ fun HomeScreen(viewModel: AppViewModel, navigator: Navigator) {
             }
         },
     ) { padding ->
-        val tabState = rememberSaveableStateHolder()
-        val enter = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
-        val exit = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
-        AnimatedContent(
-            targetState = tab,
-            modifier = Modifier.fillMaxSize(),
-            transitionSpec = { (fadeIn(enter) + scaleIn(enter, initialScale = 0.96f)) togetherWith fadeOut(exit) },
-            label = "home_tab",
+        HomeTabHost(
+            selectedTab = tab,
+            onBack = { tab = HomeTab.Photos },
+            modifier = Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding()),
         ) { current ->
-            tabState.SaveableStateProvider(current.name) {
-                Box(Modifier.fillMaxSize().padding(bottom = padding.calculateBottomPadding())) {
-                    when (current) {
-                        HomeTab.Photos -> PhotosScreen(viewModel, navigator)
-                        HomeTab.Courses -> CoursesScreen(viewModel, navigator)
-                        HomeTab.Settings -> SettingsScreen(viewModel, navigator)
-                    }
-                }
+            when (current) {
+                HomeTab.Photos -> PhotosScreen(viewModel, navigator)
+                HomeTab.Courses -> CoursesScreen(viewModel, navigator)
+                HomeTab.Settings -> SettingsScreen(viewModel, navigator)
             }
         }
     }

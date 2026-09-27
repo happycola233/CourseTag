@@ -35,6 +35,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,7 +62,7 @@ fun HistoryScreen(viewModel: AppViewModel, navigator: Navigator) {
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
             TopAppBar(
-                title = { Text("重命名记录") },
+                title = { Text("重命名记录", fontWeight = FontWeight.Bold) },
                 navigationIcon = { BackButton(navigator::back) },
                 actions = {
                     if (history.isNotEmpty()) {

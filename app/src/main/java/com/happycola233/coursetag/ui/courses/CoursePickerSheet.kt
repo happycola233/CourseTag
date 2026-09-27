@@ -32,6 +32,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,7 +81,7 @@ fun CoursePickerSheet(
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             TextField(
                 value = query,
                 onValueChange = { query = it },
@@ -124,7 +125,7 @@ fun CoursePickerSheet(
                         leadingContent = { Icon(Symbols.Add, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                         colors = itemColors,
                         modifier = itemModifier,
-                    ) { Text("新建课程「$newName」") }
+                    ) { Text("新建课程「$newName」", fontWeight = FontWeight.Bold) }
                 }
             }
             if (query.isBlank() && recommendation != null) {
@@ -138,7 +139,7 @@ fun CoursePickerSheet(
                             trailingContent = { Icon(Symbols.WandStars, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                             colors = itemColors,
                             modifier = itemModifier,
-                        ) { Text(course) }
+                        ) { Text(course, fontWeight = FontWeight.Bold) }
                     }
                 }
                 if (allowBySchedule && recommendation.courses.size > 1) {
@@ -149,7 +150,7 @@ fun CoursePickerSheet(
                             leadingContent = { Icon(Symbols.WandStars, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                             colors = itemColors,
                             modifier = itemModifier,
-                        ) { Text("按课表自动匹配") }
+                        ) { Text("按课表自动匹配", fontWeight = FontWeight.Bold) }
                     }
                 }
             }
@@ -168,7 +169,7 @@ fun CoursePickerSheet(
                     },
                     colors = itemColors,
                     modifier = itemModifier,
-                ) { Text(summary.name) }
+                ) { Text(summary.name, fontWeight = FontWeight.Bold) }
             }
             if (filtered.isEmpty() && !canCreate) {
                 item(key = "empty") {

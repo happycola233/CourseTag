@@ -8,8 +8,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
-import androidx.compose.material3.MediumExtendedFloatingActionButton
+import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
@@ -31,11 +30,11 @@ import com.happycola233.coursetag.domain.CourseSummary
 import com.happycola233.coursetag.ui.AppViewModel
 import com.happycola233.coursetag.ui.Navigator
 import com.happycola233.coursetag.ui.components.CourseAvatar
+import com.happycola233.coursetag.ui.components.CollapsingTopBar
 import com.happycola233.coursetag.ui.components.GroupGap
 import com.happycola233.coursetag.ui.components.GroupedItem
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
 import com.happycola233.coursetag.ui.components.SectionLabel
-import com.happycola233.coursetag.ui.components.pageTopBarColors
 import com.happycola233.coursetag.ui.components.rememberScheduleFilePicker
 import com.happycola233.coursetag.ui.formatCount
 import com.happycola233.coursetag.ui.formatDate
@@ -61,20 +60,17 @@ fun CoursesScreen(viewModel: AppViewModel, navigator: Navigator) {
         contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text("课程") },
-                subtitle = {
-                    Text("${courses.size} 门课程 · ${formatCount(library?.taggedCount ?: 0)} 张照片已标记")
-                },
-                scrollBehavior = scrollBehavior,
-                colors = pageTopBarColors(),
+            CollapsingTopBar(
+                title = "课程",
+                subtitle = "${courses.size} 门课程 · ${formatCount(library?.taggedCount ?: 0)} 张照片已标记",
+                state = scrollBehavior.state,
             )
         },
         floatingActionButton = {
-            MediumExtendedFloatingActionButton(
+            ExtendedFloatingActionButton(
                 onClick = { addDialog = true },
                 expanded = fabExpanded,
-                icon = { Icon(Symbols.Add, contentDescription = null) },
+                icon = { Icon(Symbols.Add, contentDescription = "添加课程") },
                 text = { Text("添加课程") },
             )
         },
@@ -86,7 +82,7 @@ fun CoursesScreen(viewModel: AppViewModel, navigator: Navigator) {
                 start = 16.dp,
                 end = 16.dp,
                 top = padding.calculateTopPadding(),
-                bottom = 112.dp,
+                bottom = 88.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(GroupGap),
         ) {
