@@ -1,0 +1,325 @@
+package com.happycola233.coursetag.ui.courses
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FloatingToolbarDefaults
+import androidx.compose.material3.HorizontalFloatingToolbar
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.MediumFlexibleTopAppBar
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.happycola233.coursetag.data.schedule.WeeklySlot
+import com.happycola233.coursetag.data.schedule.weeklySlots
+import com.happycola233.coursetag.domain.RenameRequest
+import com.happycola233.coursetag.ui.AppViewModel
+import com.happycola233.coursetag.ui.Navigator
+import com.happycola233.coursetag.ui.components.BackButton
+import com.happycola233.coursetag.ui.components.EmptyState
+import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
+import com.happycola233.coursetag.ui.components.pageTopBarColors
+import com.happycola233.coursetag.ui.formatCount
+import com.happycola233.coursetag.ui.formatDay
+import com.happycola233.coursetag.ui.formatTime
+import com.happycola233.coursetag.ui.formatWeeks
+import com.happycola233.coursetag.ui.navigation.PhotoViewerRoute
+import com.happycola233.coursetag.ui.navigation.RenamePreviewRoute
+import com.happycola233.coursetag.ui.photos.PhotoGrid
+import com.happycola233.coursetag.ui.photos.PhotoSection
+import com.happycola233.coursetag.ui.photos.TooltipIcon
+import com.happycola233.coursetag.ui.photos.toRequest
+import com.happycola233.coursetag.ui.theme.AppSurfaces
+import com.happycola233.coursetag.ui.theme.Symbols
+import com.happycola233.coursetag.ui.weekdayName
+import java.time.Instant
+import java.time.ZoneId
+
+@Composable
+fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: Navigator) {
+    val courses by viewModel.courses.collectAsStateWithLifecycle()
+    val library by viewModel.library.collectAsStateWithLifecycle()
+    val data by viewModel.data.collectAsStateWithLifecycle()
+    // 修改名称后继续停留在本页，展示新名称下的课程。
+    var name by rememberSaveable { mutableStateOf(courseName) }
+    var pendingName by rememberSaveable { mutableStateOf<String?>(null) }
+    var selection by rememberSaveable(saver = LongSetSaver) { mutableStateOf(emptySet<Long>()) }
+    var menu by remember { mutableStateOf(false) }
+    var renaming by rememberSaveable { mutableStateOf(false) }
+    var deleting by rememberSaveable { mutableStateOf(false) }
+    var picking by rememberSaveable { mutableStateOf(false) }
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    val summary = courses.firstOrNull { it.name == name }
+    LaunchedEffect(summary, pendingName, courses) {
+        if (summary == null && library != null) {
+            val renamed = pendingName?.takeIf { target -> courses.any { it.name == target } }
+            if (renamed != null) {
+                name = renamed
+                pendingName = null
+            } else {
+                navigator.back()
+            }
+        }
+    }
+    val entries = remember(library, name) { library?.entries?.filter { it.course == name }.orEmpty() }
+    val sections = remember(entries) {
+        val zone = ZoneId.systemDefault()
+        entries.groupBy { Instant.ofEpochMilli(it.photo.takenAt).atZone(zone).toLocalDate() }
+            .map { (day, items) -> PhotoSection(day.toString(), formatDay(day), entries = items) }
+    }
+    val slots = remember(data, summary) {
+        summary?.course?.scheduleNames?.let { weeklySlots(data.schedules, it) }.orEmpty()
+    }
+    val selecting = selection.isNotEmpty()
+    val selectedEntries = entries.filter { it.id in selection }
+    BackHandler(enabled = selecting) { selection = emptySet() }
+
+    fun openPreview(request: RenameRequest) {
+        selection = emptySet()
+        viewModel.preview(request)
+        navigator.open(RenamePreviewRoute)
+    }
+
+    Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = AppSurfaces.page,
+        snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
+        topBar = {
+            if (selecting) {
+                TopAppBar(
+                    title = { Text("已选择 ${selection.size} 张") },
+                    navigationIcon = {
+                        IconButton(onClick = { selection = emptySet() }) { Icon(Symbols.Close, contentDescription = "取消选择") }
+                    },
+                    colors = pageTopBarColors(),
+                )
+            } else {
+                MediumFlexibleTopAppBar(
+                    title = { Text(name) },
+                    subtitle = { Text(if (entries.isEmpty()) "暂无照片" else "${formatCount(entries.size)} 张照片") },
+                    navigationIcon = { BackButton(navigator::back) },
+                    actions = {
+                        Box {
+                            IconButton(onClick = { menu = true }) { Icon(Symbols.MoreVert, contentDescription = "更多") }
+                            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                DropdownMenuItem(
+                                    text = { Text("修改名称") },
+                                    leadingIcon = { Icon(Symbols.EditNote, contentDescription = null) },
+                                    onClick = {
+                                        menu = false
+                                        renaming = true
+                                    },
+                                )
+                                if (summary?.course == null) {
+                                    DropdownMenuItem(
+                                        text = { Text("保存到课程列表") },
+                                        leadingIcon = { Icon(Symbols.Add, contentDescription = null) },
+                                        onClick = {
+                                            menu = false
+                                            viewModel.addCourses(listOf(name))
+                                            viewModel.message("已保存「$name」")
+                                        },
+                                    )
+                                }
+                                if (entries.isNotEmpty()) {
+                                    DropdownMenuItem(
+                                        text = { Text("移除全部照片的课程") },
+                                        leadingIcon = { Icon(Symbols.LabelOff, contentDescription = null) },
+                                        onClick = {
+                                            menu = false
+                                            openPreview(RenameRequest.Assign("移除课程「$name」", entries.associate { it.id to null }))
+                                        },
+                                    )
+                                }
+                                if (summary?.course != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("删除课程") },
+                                        leadingIcon = { Icon(Symbols.Delete, contentDescription = null) },
+                                        onClick = {
+                                            menu = false
+                                            deleting = true
+                                        },
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                    colors = pageTopBarColors(),
+                )
+            }
+        },
+    ) { padding ->
+        Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
+            PhotoGrid(
+                sections = sections,
+                selection = selection,
+                onSelectionChange = { selection = it },
+                onOpen = { entry, ids ->
+                    viewModel.viewerPhotoIds = ids
+                    navigator.open(PhotoViewerRoute(entry.id))
+                },
+                contentPadding = PaddingValues(
+                    start = 12.dp,
+                    end = 12.dp,
+                    bottom = padding.calculateBottomPadding() + if (selecting) 104.dp else 24.dp,
+                ),
+                showCourseTags = false,
+                header = {
+                    if (slots.isNotEmpty()) {
+                        item(key = "slots", span = { GridItemSpan(maxLineSpan) }) { ScheduleSlots(slots) }
+                    }
+                    if (entries.isEmpty()) {
+                        item(key = "empty", span = { GridItemSpan(maxLineSpan) }) {
+                            EmptyState(
+                                icon = Symbols.Sell,
+                                title = "还没有这门课的照片",
+                                body = "在照片页长按选择照片，再标记为「$name」",
+                            )
+                        }
+                    }
+                },
+            )
+            AnimatedVisibility(
+                visible = selecting,
+                modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = 16.dp),
+                enter = fadeIn(MaterialTheme.motionScheme.defaultEffectsSpec()) +
+                    scaleIn(MaterialTheme.motionScheme.defaultSpatialSpec(), initialScale = 0.8f),
+                exit = fadeOut(MaterialTheme.motionScheme.fastEffectsSpec()) +
+                    scaleOut(MaterialTheme.motionScheme.fastSpatialSpec(), targetScale = 0.8f),
+            ) {
+                HorizontalFloatingToolbar(
+                    expanded = true,
+                    floatingActionButton = {
+                        FloatingToolbarDefaults.VibrantFloatingActionButton(onClick = { picking = true }) {
+                            Icon(Symbols.SwapHoriz, contentDescription = "更换课程")
+                        }
+                    },
+                    colors = FloatingToolbarDefaults.vibrantFloatingToolbarColors(),
+                ) {
+                    TooltipIcon("移除课程") { label ->
+                        IconButton(onClick = {
+                            openPreview(RenameRequest.Assign("移除课程「$name」", selectedEntries.associate { it.id to null }))
+                        }) { Icon(Symbols.LabelOff, contentDescription = label) }
+                    }
+                }
+            }
+        }
+    }
+
+    if (picking && selectedEntries.isNotEmpty()) {
+        CoursePickerSheet(
+            viewModel = viewModel,
+            entries = selectedEntries,
+            title = "将 ${selectedEntries.size} 张照片改为",
+            currentCourse = name,
+            onDismiss = { picking = false },
+            onPick = { pick ->
+                picking = false
+                openPreview(pick.toRequest(selectedEntries))
+            },
+        )
+    }
+    if (renaming) {
+        RenameCourseDialog(
+            current = name,
+            photoCount = entries.size,
+            existing = courses.map { it.name }.toSet(),
+            onDismiss = { renaming = false },
+            onRename = { newName ->
+                renaming = false
+                if (viewModel.renameCourse(name, newName)) {
+                    pendingName = newName
+                    navigator.open(RenamePreviewRoute)
+                } else {
+                    name = newName
+                }
+            },
+        )
+    }
+    if (deleting) {
+        ConfirmDialog(
+            title = "删除「$name」？",
+            message = if (entries.isEmpty()) {
+                "课程将从列表中移除。"
+            } else {
+                "课程将从列表中移除，${entries.size} 张照片文件名中的课程保持不变，仍会显示在课程列表中。"
+            },
+            confirmLabel = "删除",
+            onDismiss = { deleting = false },
+            onConfirm = {
+                deleting = false
+                viewModel.deleteCourse(name)
+            },
+        )
+    }
+}
+
+@Composable
+private fun ScheduleSlots(slots: List<WeeklySlot>) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = AppSurfaces.card,
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Icon(Symbols.Schedule, contentDescription = null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+                Text("上课时间", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+            }
+            for (slot in slots) {
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        "${weekdayName(slot.dayOfWeek)} ${formatTime(slot.start)}–${formatTime(slot.end)} · ${formatWeeks(slot.weeks)}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    val details = listOfNotNull(slot.location, slot.teacher, slot.scheduleName).joinToString(" · ")
+                    Text(details, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+    }
+}
+
+/** 以 LongArray 保存选中照片，配置变更与进程重建后保持选择。 */
+private val LongSetSaver = Saver<MutableState<Set<Long>>, LongArray>(
+    save = { it.value.toLongArray() },
+    restore = { mutableStateOf(it.toSet()) },
+)

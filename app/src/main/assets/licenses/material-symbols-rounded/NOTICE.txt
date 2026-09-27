@@ -1,0 +1,63 @@
+Material Symbols Rounded, by Google
+
+Source repository: https://github.com/google/material-design-icons
+Fixed source commit: 27e9ef1dbeedc13d682fece4a58e1eda4cb0961a
+Documentation: https://developers.google.com/fonts/docs/material_symbols
+License: Apache License 2.0 (see LICENSE.txt in this directory)
+
+Variant: Material Symbols Rounded, weight 400, optical size 24, grade 0.
+Fill is 0 for regular symbols and 1 for symbols whose resource name ends with _filled.
+
+Modifications: SVG paths have been converted to Android VectorDrawable XML.
+The original path data is unchanged. The SVG viewBox origin is adapted with a
+group translation, the fill color is supplied by the UI, and directional
+symbols enable RTL auto-mirroring. The launcher foreground insets the filled
+sell path into the adaptive icon safe zone and colors it with the launcher color.
+
+The following source paths are relative to the fixed repository commit:
+
+symbol_photo_library.xml <- symbols/web/photo_library/materialsymbolsrounded/photo_library_24px.svg
+symbol_photo_library_filled.xml <- symbols/web/photo_library/materialsymbolsrounded/photo_library_fill1_24px.svg
+symbol_school.xml <- symbols/web/school/materialsymbolsrounded/school_24px.svg
+symbol_school_filled.xml <- symbols/web/school/materialsymbolsrounded/school_fill1_24px.svg
+symbol_settings.xml <- symbols/web/settings/materialsymbolsrounded/settings_24px.svg
+symbol_settings_filled.xml <- symbols/web/settings/materialsymbolsrounded/settings_fill1_24px.svg
+symbol_sell.xml <- symbols/web/sell/materialsymbolsrounded/sell_24px.svg
+symbol_label_off.xml <- symbols/web/label_off/materialsymbolsrounded/label_off_24px.svg
+symbol_wand_stars.xml <- symbols/web/wand_stars/materialsymbolsrounded/wand_stars_24px.svg
+symbol_calendar_month.xml <- symbols/web/calendar_month/materialsymbolsrounded/calendar_month_24px.svg
+symbol_calendar_add_on.xml <- symbols/web/calendar_add_on/materialsymbolsrounded/calendar_add_on_24px.svg
+symbol_event_busy.xml <- symbols/web/event_busy/materialsymbolsrounded/event_busy_24px.svg
+symbol_schedule.xml <- symbols/web/schedule/materialsymbolsrounded/schedule_24px.svg
+symbol_check.xml <- symbols/web/check/materialsymbolsrounded/check_24px.svg
+symbol_check_circle_filled.xml <- symbols/web/check_circle/materialsymbolsrounded/check_circle_fill1_24px.svg
+symbol_circle.xml <- symbols/web/circle/materialsymbolsrounded/circle_24px.svg
+symbol_close.xml <- symbols/web/close/materialsymbolsrounded/close_24px.svg
+symbol_arrow_back.xml <- symbols/web/arrow_back/materialsymbolsrounded/arrow_back_24px.svg
+symbol_arrow_forward.xml <- symbols/web/arrow_forward/materialsymbolsrounded/arrow_forward_24px.svg
+symbol_add.xml <- symbols/web/add/materialsymbolsrounded/add_24px.svg
+symbol_edit.xml <- symbols/web/edit/materialsymbolsrounded/edit_24px.svg
+symbol_delete.xml <- symbols/web/delete/materialsymbolsrounded/delete_24px.svg
+symbol_more_vert.xml <- symbols/web/more_vert/materialsymbolsrounded/more_vert_24px.svg
+symbol_search.xml <- symbols/web/search/materialsymbolsrounded/search_24px.svg
+symbol_chevron_right.xml <- symbols/web/chevron_right/materialsymbolsrounded/chevron_right_24px.svg
+symbol_arrow_drop_down.xml <- symbols/web/arrow_drop_down/materialsymbolsrounded/arrow_drop_down_24px.svg
+symbol_expand_more.xml <- symbols/web/expand_more/materialsymbolsrounded/expand_more_24px.svg
+symbol_expand_less.xml <- symbols/web/expand_less/materialsymbolsrounded/expand_less_24px.svg
+symbol_undo.xml <- symbols/web/undo/materialsymbolsrounded/undo_24px.svg
+symbol_history.xml <- symbols/web/history/materialsymbolsrounded/history_24px.svg
+symbol_text_fields.xml <- symbols/web/text_fields/materialsymbolsrounded/text_fields_24px.svg
+symbol_photo_album.xml <- symbols/web/photo_album/materialsymbolsrounded/photo_album_24px.svg
+symbol_timer.xml <- symbols/web/timer/materialsymbolsrounded/timer_24px.svg
+symbol_contrast.xml <- symbols/web/contrast/materialsymbolsrounded/contrast_24px.svg
+symbol_verified_user.xml <- symbols/web/verified_user/materialsymbolsrounded/verified_user_24px.svg
+symbol_image.xml <- symbols/web/image/materialsymbolsrounded/image_24px.svg
+symbol_error.xml <- symbols/web/error/materialsymbolsrounded/error_24px.svg
+symbol_select_all.xml <- symbols/web/select_all/materialsymbolsrounded/select_all_24px.svg
+symbol_swap_horiz.xml <- symbols/web/swap_horiz/materialsymbolsrounded/swap_horiz_24px.svg
+symbol_open_in_new.xml <- symbols/web/open_in_new/materialsymbolsrounded/open_in_new_24px.svg
+symbol_edit_note.xml <- symbols/web/edit_note/materialsymbolsrounded/edit_note_24px.svg
+symbol_article.xml <- symbols/web/article/materialsymbolsrounded/article_24px.svg
+symbol_image_search.xml <- symbols/web/image_search/materialsymbolsrounded/image_search_24px.svg
+symbol_done_all.xml <- symbols/web/done_all/materialsymbolsrounded/done_all_24px.svg
+ic_launcher_foreground.xml <- symbols/web/sell/materialsymbolsrounded/sell_fill1_24px.svg

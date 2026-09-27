@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 课程、课表与命名设置随系统备份迁移；重命名记录绑定本机媒体库 ID，不参与备份。 -->
+<data-extraction-rules>
+    <cloud-backup>
+        <include domain="file" path="app_data.json" />
+    </cloud-backup>
+    <device-transfer>
+        <include domain="file" path="app_data.json" />
+    </device-transfer>
+</data-extraction-rules>

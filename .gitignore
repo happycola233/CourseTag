@@ -1,0 +1,39 @@
+# 本地开发资料与临时文件
+.devfiles/
+.tmp/
+
+# Gradle 与 Kotlin
+.gradle/
+.kotlin/
+build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+.navigation/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 本机配置与签名信息（含本机路径或密钥，禁止提交）
+local.properties
+*.jks
+*.keystore
+keystore.properties
+signing.properties
+
+# 构建产物
+*.apk
+*.aab
+*.ap_
+*.dex
+output-metadata.json
+
+# Claude Code 本机设置
+.claude/settings.local.json
+
+# 系统文件与日志
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log

@@ -1,0 +1,6 @@
+# 统一使用 LF，保证 gradlew 在 Linux / macOS 上可直接执行。
+* text=auto eol=lf
+*.bat text eol=crlf
+*.jar binary
+*.png binary
+*.webp binary

@@ -1,0 +1,13 @@
+<resources>
+    <!-- 仅负责启动窗口；进入 Compose 后由 MaterialExpressiveTheme 接管全部配色。 -->
+    <style name="Theme.CourseTag.Base" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/startup_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+        <item name="android:colorAccent">@color/launcher_foreground</item>
+    </style>
+
+    <style name="Theme.CourseTag" parent="Theme.CourseTag.Base" />
+</resources>
