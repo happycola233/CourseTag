@@ -47,4 +47,51 @@ class TagFormatTest {
     fun sanitizesCharactersRejectedByStorage() {
         assertEquals("C／C++ 程序设计：上", FileNames.sanitizeCourseName("  C/C++   程序设计:上 "))
     }
+
+    @Test
+    fun switchingToUnderscoresPreservesOldSuffixAndOriginalTimestamp() {
+        for (known in listOf(false, true)) {
+            val parser = PhotoNameParser(TagFormatPreset.Underscore.format, listOf(TagFormat.Default)) {
+                known && it == "高等数学"
+            }
+            val parsed = parser.parse("IMG_20260927_143021（高等数学）.jpg")
+            assertEquals("IMG_20260927_143021", parsed.stem)
+            assertEquals("高等数学", parsed.course)
+            assertEquals(TagFormat.Default, parsed.format)
+            assertEquals("IMG_20260927_143021_大学物理.jpg", parser.compose(parsed, "大学物理"))
+            assertEquals("IMG_20260927_143021.jpg", parser.compose(parsed, null))
+        }
+    }
+
+    @Test
+    fun allPresetMigrationsKeepCourseAndOriginalStem() {
+        val stem = "IMG_20260927_143021"
+        val course = "大学物理A（下）"
+        for (old in TagFormatPreset.entries) for (current in TagFormatPreset.entries) {
+            val parser = PhotoNameParser(current.format, listOf(old.format)) { it == course }
+            val parsed = parser.parse(old.format.compose(stem, course) + ".jpg")
+            assertEquals("${old.name} -> ${current.name}", stem, parsed.stem)
+            assertEquals(course, parsed.course)
+            assertEquals(current.format.compose(stem, course) + ".jpg", parser.compose(parsed, course))
+        }
+    }
+
+    @Test
+    fun knownCourseCanContainItsDelimiter() {
+        val course = "Computer_Science"
+        val parser = PhotoNameParser(TagFormatPreset.Underscore.format, emptyList()) { it == course }
+        val parsed = parser.parse("IMG_0001_Computer_Science.jpg")
+        assertEquals("IMG_0001", parsed.stem)
+        assertEquals(course, parsed.course)
+    }
+
+    @Test
+    fun knownCurrentCourseOutranksAnInnerOldFormat() {
+        val course = "大学物理（下）"
+        val parser = PhotoNameParser(TagFormatPreset.Underscore.format, listOf(TagFormat.Default)) { it == course }
+        val parsed = parser.parse("IMG_0001_大学物理（下）.jpg")
+        assertEquals("IMG_0001", parsed.stem)
+        assertEquals(course, parsed.course)
+        assertEquals(TagFormatPreset.Underscore.format, parsed.format)
+    }
 }

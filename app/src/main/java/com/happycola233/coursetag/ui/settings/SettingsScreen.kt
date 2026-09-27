@@ -50,9 +50,9 @@ import com.happycola233.coursetag.ui.components.GroupGap
 import com.happycola233.coursetag.ui.components.GroupedItem
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
 import com.happycola233.coursetag.ui.components.SectionLabel
-import com.happycola233.coursetag.ui.components.canManageMedia
+import com.happycola233.coursetag.ui.components.canRenameWithoutConfirmation
 import com.happycola233.coursetag.ui.components.openAppSettings
-import com.happycola233.coursetag.ui.components.openMediaManagementSettings
+import com.happycola233.coursetag.ui.components.rememberMediaManagementRequest
 import com.happycola233.coursetag.ui.components.pageTopBarColors
 import com.happycola233.coursetag.ui.components.supportsMediaManagement
 import com.happycola233.coursetag.ui.navigation.HistoryRoute
@@ -75,14 +75,17 @@ fun SettingsScreen(viewModel: AppViewModel, navigator: Navigator) {
     val access by viewModel.access.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var canManage by rememberSaveable { mutableStateOf(false) }
+    var canSkipConfirmation by rememberSaveable { mutableStateOf(false) }
+    val requestMediaManagement = rememberMediaManagementRequest(viewModel) {
+        canSkipConfirmation = context.canRenameWithoutConfirmation()
+    }
     var windowDialog by rememberSaveable { mutableStateOf(false) }
     var themeDialog by rememberSaveable { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val settings = data.settings
 
     LifecycleResumeEffect(Unit) {
-        canManage = context.canManageMedia()
+        canSkipConfirmation = context.canRenameWithoutConfirmation()
         onPauseOrDispose { }
     }
 
@@ -150,10 +153,10 @@ fun SettingsScreen(viewModel: AppViewModel, navigator: Navigator) {
                         index = 1,
                         count = permissionRows,
                         headline = "免确认修改照片",
-                        supporting = if (canManage) "已开启，重命名时不再逐次确认" else "开启后，重命名时不再弹出系统确认",
+                        supporting = if (canSkipConfirmation) "已开启，重命名时不再逐次确认" else "未开启，点按完成照片权限与媒体管理授权",
                         icon = Symbols.VerifiedUser,
                         trailing = { Icon(Symbols.OpenInNew, contentDescription = null) },
-                        onClick = context::openMediaManagementSettings,
+                        onClick = requestMediaManagement,
                     )
                 }
             }

@@ -31,13 +31,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.happycola233.coursetag.ui.AppViewModel
 import com.happycola233.coursetag.ui.Navigator
-import com.happycola233.coursetag.ui.components.mediaAccess
 import com.happycola233.coursetag.ui.courses.CoursesScreen
 import com.happycola233.coursetag.ui.photos.PhotosScreen
 import com.happycola233.coursetag.ui.settings.SettingsScreen
@@ -51,14 +48,8 @@ fun HomeScreen(viewModel: AppViewModel, navigator: Navigator) {
     var tab by rememberSaveable { mutableStateOf(HomeTab.Photos) }
     val selection by viewModel.selection.collectAsStateWithLifecycle()
     val selecting = tab == HomeTab.Photos && selection.isNotEmpty()
-    val context = LocalContext.current
     val haptics = LocalHapticFeedback.current
 
-    // 每次回到前台都重新检查照片权限，用户可能刚在系统设置中修改过。
-    LifecycleResumeEffect(Unit) {
-        viewModel.onAccessChecked(context.mediaAccess())
-        onPauseOrDispose { }
-    }
     BackHandler(enabled = tab != HomeTab.Photos) { tab = HomeTab.Photos }
 
     Scaffold(

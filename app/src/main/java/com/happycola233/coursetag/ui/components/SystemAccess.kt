@@ -74,6 +74,35 @@ val supportsMediaManagement: Boolean get() = Build.VERSION.SDK_INT >= Build.VERS
 fun Context.canManageMedia(): Boolean =
     Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && MediaStore.canManageMedia(this)
 
+/** 系统免确认写入还会检查照片读取权限及原始媒体位置信息权限。 */
+fun Context.canRenameWithoutConfirmation(): Boolean =
+    canManageMedia() && mediaAccess() == MediaAccess.Full && granted(Manifest.permission.ACCESS_MEDIA_LOCATION)
+
+/** 仅在用户主动开启免确认时申请附加权限；拒绝后仍保留普通的系统确认流程。 */
+@Composable
+fun rememberMediaManagementRequest(viewModel: AppViewModel, onAccessChanged: () -> Unit): () -> Unit {
+    val context = LocalContext.current
+    fun finishRequest() {
+        viewModel.onAccessChecked(context.mediaAccess())
+        onAccessChanged()
+        if (context.mediaAccess() == MediaAccess.Full && context.granted(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
+            if (!context.canManageMedia()) context.openMediaManagementSettings()
+        } else {
+            viewModel.message("尚未开启免确认，可在应用权限设置中允许全部照片和照片位置信息")
+        }
+    }
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        finishRequest()
+    }
+    return {
+        if (context.mediaAccess() != MediaAccess.Full || !context.granted(Manifest.permission.ACCESS_MEDIA_LOCATION)) {
+            launcher.launch(mediaPermissions + Manifest.permission.ACCESS_MEDIA_LOCATION)
+        } else {
+            context.openMediaManagementSettings()
+        }
+    }
+}
+
 fun Context.openMediaManagementSettings() {
     if (!supportsMediaManagement) return
     startActivity(

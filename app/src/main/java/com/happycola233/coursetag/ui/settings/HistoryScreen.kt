@@ -137,7 +137,11 @@ private fun BatchCard(batch: RenameBatch, expanded: Boolean, onToggle: () -> Uni
             ) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(batch.title, style = MaterialTheme.typography.titleMedium)
-                    val status = if (batch.undone) " · 已撤销" else ""
+                    val status = when {
+                        batch.undone -> " · 已撤销"
+                        batch.revertedMediaIds.isNotEmpty() -> " · 已恢复 ${batch.revertedMediaIds.size} 张"
+                        else -> ""
+                    }
                     Text(
                         "${batch.records.size} 张照片 · ${formatDateTime(batch.createdAt)}$status",
                         style = MaterialTheme.typography.bodySmall,
@@ -147,7 +151,7 @@ private fun BatchCard(batch: RenameBatch, expanded: Boolean, onToggle: () -> Uni
                 if (!batch.undone) {
                     FilledTonalButton(onClick = onUndo, shapes = ButtonDefaults.shapes()) {
                         Icon(Symbols.Undo, contentDescription = null, Modifier.size(ButtonDefaults.IconSize))
-                        Text("撤销", Modifier.padding(start = ButtonDefaults.IconSpacing))
+                        Text(if (batch.revertedMediaIds.isEmpty()) "撤销" else "继续撤销", Modifier.padding(start = ButtonDefaults.IconSpacing))
                     }
                 }
                 Icon(

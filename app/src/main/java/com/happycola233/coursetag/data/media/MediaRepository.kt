@@ -104,7 +104,7 @@ class MediaRepository(context: Context) {
         awaitClose { resolver.unregisterContentObserver(observer) }
     }
 
-    /** 一次性申请修改多张照片的权限，系统只弹出一个确认框；已开启「媒体管理」时直接通过。 */
+    /** 为一批照片请求修改权限；调用方按系统数量上限拆分批次。 */
     fun createWriteRequest(uris: List<Uri>): PendingIntent = MediaStore.createWriteRequest(resolver, uris)
 
     suspend fun rename(

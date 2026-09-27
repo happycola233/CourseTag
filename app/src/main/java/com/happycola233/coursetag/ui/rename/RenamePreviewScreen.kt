@@ -50,6 +50,7 @@ import com.happycola233.coursetag.domain.RenameChange
 import com.happycola233.coursetag.domain.RenameItem
 import com.happycola233.coursetag.domain.RenamePlan
 import com.happycola233.coursetag.ui.AppViewModel
+import com.happycola233.coursetag.ui.ApplyProgress
 import com.happycola233.coursetag.ui.Navigator
 import com.happycola233.coursetag.ui.components.BackButton
 import com.happycola233.coursetag.ui.components.EmptyState
@@ -71,8 +72,8 @@ fun RenamePreviewScreen(viewModel: AppViewModel, navigator: Navigator) {
     val progress by viewModel.progress.collectAsStateWithLifecycle()
     // 开始重命名后固定显示当前方案：照片改名后方案会被重新计算为「无需重命名」，不应在页面关闭时闪现。
     var frozenPlan by remember { mutableStateOf<RenamePlan?>(null) }
-    LaunchedEffect(progress != null) {
-        if (progress != null && frozenPlan == null) frozenPlan = livePlan
+    LaunchedEffect(progress is ApplyProgress.Renaming) {
+        if (progress is ApplyProgress.Renaming && frozenPlan == null) frozenPlan = livePlan
     }
     val currentPlan = frozenPlan ?: livePlan
     val parser = library?.parser

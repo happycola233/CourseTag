@@ -21,6 +21,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.happycola233.coursetag.ui.AppViewModel
+import com.happycola233.coursetag.ui.ApplyProgress
 import com.happycola233.coursetag.ui.theme.AppSurfaces
 
 /** 批量重命名进行中时不可关闭，避免用户误以为已经完成。 */
@@ -34,16 +35,25 @@ fun ApplyProgressDialog(viewModel: AppViewModel) {
     ) {
         Surface(shape = MaterialTheme.shapes.extraLarge, color = AppSurfaces.modal) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text("正在重命名", style = MaterialTheme.typography.headlineSmall)
-                LinearWavyProgressIndicator(
-                    progress = { if (current.total == 0) 0f else current.done.toFloat() / current.total },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Text(
-                    "${current.done} / ${current.total}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                when (current) {
+                    is ApplyProgress.AwaitingApproval -> {
+                        Text("等待系统授权", style = MaterialTheme.typography.headlineSmall)
+                        Text("第 ${current.batch} / ${current.totalBatches} 批", style = MaterialTheme.typography.bodyLarge)
+                        Text("全部允许后开始重命名，取消则保持原样", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    is ApplyProgress.Renaming -> {
+                        Text("正在重命名", style = MaterialTheme.typography.headlineSmall)
+                        LinearWavyProgressIndicator(
+                            progress = { current.done.toFloat() / current.total },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            "${current.done} / ${current.total}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
     }

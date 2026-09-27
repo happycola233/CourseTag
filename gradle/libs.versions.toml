@@ -12,6 +12,7 @@ coroutines = "1.11.0"
 serialization = "1.11.0"
 coil = "3.6.3"
 junit = "4.13.2"
+libRecur = "0.17.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -30,6 +31,7 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+lib-recur = { group = "org.dmfs", name = "lib-recur", version.ref = "libRecur" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

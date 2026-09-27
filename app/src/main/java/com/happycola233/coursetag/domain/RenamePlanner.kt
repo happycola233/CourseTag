@@ -83,7 +83,7 @@ fun planRename(request: RenameRequest, library: Library): RenamePlan {
             }
             addItem(entry, newName, course, change)
         }
-        is RenameRequest.Revert -> for (record in request.batch.records) {
+        is RenameRequest.Revert -> for (record in request.batch.pendingRecords) {
             val entry = library.byId[record.mediaId]
             if (entry == null || entry.photo.name != record.to) {
                 missing++

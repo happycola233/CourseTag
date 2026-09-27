@@ -1,16 +1,15 @@
 package com.happycola233.coursetag.data.ics
 
 import com.happycola233.coursetag.data.ClassMeeting
-import java.time.DayOfWeek
 import java.time.Duration
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-import java.time.temporal.TemporalAdjusters
+import java.util.TimeZone
+import org.dmfs.rfc5545.recur.RecurrenceRule
 
 class IcsFormatException(message: String) : Exception(message)
 
@@ -31,10 +30,9 @@ object IcsParser {
     private const val MAX_OCCURRENCES_PER_EVENT = 1000
     private val unboundedHorizon: Duration = Duration.ofDays(366 * 2L)
     private val dateTimeFormat = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss")
-    private val dateFormat = DateTimeFormatter.ofPattern("yyyyMMdd")
 
     fun parse(text: String, defaultZone: ZoneId = ZoneId.systemDefault()): ParsedCalendar {
-        val root = buildTree(unfold(text.removePrefix("﻿")))
+        val root = buildTree(unfold(text.removePrefix("\uFEFF")))
         val calendar = root.children.firstOrNull { it.type == "VCALENDAR" }
             ?: throw IcsFormatException("不是有效的日历文件")
         val isWakeUp = calendar.value("PRODID")?.contains("WakeUp", ignoreCase = true) == true
@@ -42,19 +40,40 @@ object IcsParser {
         val timeZones = calendar.children.filter { it.type == "VTIMEZONE" }
             .mapNotNull { component ->
                 val id = component.value("TZID") ?: return@mapNotNull null
-                id to (zoneOrNull(id) ?: fixedOffsetOf(component) ?: calendarZone)
+                id to (zoneOrNull(id) ?: fixedOffsetOf(component)
+                    ?: throw IcsFormatException("暂不支持课表中的时区「$id」，请使用标准时区重新导出"))
             }
             .toMap()
         val resolver = ZoneResolver(timeZones, calendarZone)
-        val events = calendar.children.filter { it.type == "VEVENT" }
-            .mapNotNull { runCatching { readEvent(it, resolver, isWakeUp) }.getOrNull() }
+        val components = calendar.children.filter { it.type == "VEVENT" }
+        fun Component.cancelled() = value("STATUS").equals("CANCELLED", ignoreCase = true)
+        // 取消记录可以没有 SUMMARY、DTSTART 和时长，必须先读取其 UID / RECURRENCE-ID。
+        val cancelledSeries = components.filter { it.cancelled() && it.property("RECURRENCE-ID") == null }
+            .mapNotNull { it.value("UID") }.toSet()
+        val overriddenStarts = components.mapNotNull { component ->
+            val property = component.property("RECURRENCE-ID") ?: return@mapNotNull null
+            if (property.params["RANGE"] != null) {
+                throw IcsFormatException("暂不支持一次调整整段重复课程，请将调课拆成单次事件后导入")
+            }
+            val time = parseDateTime(property, resolver)?.toInstant() ?: return@mapNotNull null
+            val uid = component.value("UID") ?: throw IcsFormatException("调课记录缺少课程标识，请重新导出课表")
+            uid to time
+        }.groupBy({ it.first }, { it.second })
+        val events = components.filterNot { it.cancelled() || it.value("UID") in cancelledSeries }
+            .mapNotNull { component ->
+                try {
+                    readEvent(component, resolver, isWakeUp)
+                } catch (error: IcsFormatException) {
+                    throw error
+                } catch (_: Exception) {
+                    val course = component.value("SUMMARY")?.let(::unescape).orEmpty()
+                    throw IcsFormatException("无法解析「$course」的上课时间或重复规则，请检查后重新导出")
+                }
+            }
         if (events.isEmpty()) throw IcsFormatException("日历中没有可用的课程时间")
 
-        val overrides = events.filter { it.recurrenceId != null }
-        val overriddenStarts = overrides.groupBy({ it.uid }, { it.recurrenceId!! })
         val meetings = buildList {
             for (event in events) {
-                if (event.cancelled) continue
                 val skipped = if (event.recurrenceId == null) {
                     overriddenStarts[event.uid].orEmpty().toSet()
                 } else {
@@ -78,7 +97,7 @@ object IcsParser {
         if (meetings.isEmpty()) throw IcsFormatException("日历中没有可用的课程时间")
         return ParsedCalendar(
             name = calendar.value("X-WR-CALNAME")?.let(::unescape)?.trim()?.ifEmpty { null },
-            zone = mostCommonZone(events) ?: calendarZone,
+            zone = mostCommonZone(events.filter { it.start.zone != ZoneOffset.UTC }) ?: calendarZone,
             meetings = meetings,
         )
     }
@@ -193,12 +212,12 @@ object IcsParser {
         val exDates: Set<Instant>,
         val rDates: List<ZonedDateTime>,
         val recurrenceId: Instant?,
-        val cancelled: Boolean,
     )
 
     private class ZoneResolver(private val known: Map<String, ZoneId>, val fallback: ZoneId) {
         fun resolve(tzid: String?): ZoneId =
-            tzid?.let { known[it] ?: zoneOrNull(it) } ?: fallback
+            if (tzid == null) fallback else known[tzid] ?: zoneOrNull(tzid)
+                ?: throw IcsFormatException("暂不支持课表中的时区「$tzid」，请使用标准时区重新导出")
     }
 
     private fun readEvent(component: Component, zones: ZoneResolver, isWakeUp: Boolean): Event? {
@@ -206,6 +225,9 @@ object IcsParser {
         val startProperty = component.property("DTSTART") ?: return null
         // 全天事件没有具体上课时段，无法用于匹配照片。
         val start = parseDateTime(startProperty, zones) ?: return null
+        if (component.properties.count { it.name == "RRULE" } > 1 || component.property("EXRULE") != null) {
+            throw IcsFormatException("「$summary」包含暂不支持的重复规则组合，请重新导出为标准 ICS 课表")
+        }
         val end = component.property("DTEND")?.let { parseDateTime(it, zones) }
         val duration = when {
             end != null -> Duration.between(start, end)
@@ -227,14 +249,13 @@ object IcsParser {
             teacher = teacher,
             start = start,
             duration = duration,
-            rule = component.value("RRULE")?.let { parseRule(it, start.zone) },
+            rule = component.value("RRULE")?.let { RecurrenceRule(it, RecurrenceRule.RfcMode.RFC5545_STRICT) },
             exDates = component.properties.filter { it.name == "EXDATE" }
                 .flatMap { parseDateTimeList(it, zones) }
                 .map { it.toInstant() }
                 .toSet(),
             rDates = component.properties.filter { it.name == "RDATE" }.flatMap { parseDateTimeList(it, zones) },
             recurrenceId = component.property("RECURRENCE-ID")?.let { parseDateTime(it, zones) }?.toInstant(),
-            cancelled = component.value("STATUS").equals("CANCELLED", ignoreCase = true),
         )
     }
 
@@ -261,7 +282,6 @@ object IcsParser {
         if (params["VALUE"].equals("DATE", ignoreCase = true) || value.length == 8) return null
         return if (value.endsWith("Z", ignoreCase = true)) {
             LocalDateTime.parse(value.dropLast(1), dateTimeFormat).atZone(ZoneOffset.UTC)
-                .withZoneSameInstant(zones.fallback)
         } else {
             LocalDateTime.parse(value, dateTimeFormat).atZone(zones.resolve(params["TZID"]?.trim('"')))
         }
@@ -282,89 +302,22 @@ object IcsParser {
 
     // region 重复规则
 
-    private class RecurrenceRule(
-        val frequency: String,
-        val interval: Int,
-        val count: Int?,
-        val until: Instant?,
-        val byDay: List<DayOfWeek>,
-    )
-
-    private fun parseRule(value: String, zone: ZoneId): RecurrenceRule? {
-        val parts = value.split(';').mapNotNull { part ->
-            val equals = part.indexOf('=')
-            if (equals <= 0) null else part.substring(0, equals).uppercase() to part.substring(equals + 1)
-        }.toMap()
-        val frequency = parts["FREQ"]?.uppercase() ?: return null
-        val until = parts["UNTIL"]?.let { raw ->
-            when {
-                raw.length == 8 -> LocalDate.parse(raw, dateFormat).plusDays(1).atStartOfDay(zone).toInstant()
-                    .minusMillis(1)
-                raw.endsWith("Z", ignoreCase = true) ->
-                    LocalDateTime.parse(raw.dropLast(1), dateTimeFormat).toInstant(ZoneOffset.UTC)
-                else -> LocalDateTime.parse(raw, dateTimeFormat).atZone(zone).toInstant()
-            }
-        }
-        val byDay = parts["BYDAY"]?.split(',')?.mapNotNull { token ->
-            when (token.trim().takeLast(2).uppercase()) {
-                "MO" -> DayOfWeek.MONDAY
-                "TU" -> DayOfWeek.TUESDAY
-                "WE" -> DayOfWeek.WEDNESDAY
-                "TH" -> DayOfWeek.THURSDAY
-                "FR" -> DayOfWeek.FRIDAY
-                "SA" -> DayOfWeek.SATURDAY
-                "SU" -> DayOfWeek.SUNDAY
-                else -> null
-            }
-        }.orEmpty()
-        return RecurrenceRule(
-            frequency = frequency,
-            interval = parts["INTERVAL"]?.toIntOrNull()?.coerceAtLeast(1) ?: 1,
-            count = parts["COUNT"]?.toIntOrNull()?.coerceAtLeast(1),
-            until = until,
-            byDay = byDay,
-        )
-    }
-
+    /** RRULE 交给经过 RFC 用例验证的解析库处理，避免各 BYxxx 规则组合被静默忽略。 */
     private fun expand(event: Event): List<ZonedDateTime> {
         val rule = event.rule ?: return (listOf(event.start) + event.rDates).distinct()
-        val limit = rule.until ?: event.start.toInstant().plus(unboundedHorizon)
-        val maxCount = rule.count ?: MAX_OCCURRENCES_PER_EVENT
+        val iterator = rule.iterator(event.start.toInstant().toEpochMilli(), TimeZone.getTimeZone(event.start.zone))
+        val horizon = if (rule.isInfinite) event.start.toInstant().plus(unboundedHorizon) else null
         val result = mutableListOf<ZonedDateTime>()
-        var step = 0L
-        // 每轮生成一个周期（天/周/月/年）内的候选时间，超出截止或次数后停止。
-        while (result.size < maxCount && step < MAX_OCCURRENCES_PER_EVENT) {
-            val candidates = periodCandidates(event.start, rule, step * rule.interval)
-            if (candidates.isEmpty()) break
-            var reachedLimit = false
-            for (candidate in candidates) {
-                if (candidate.isBefore(event.start)) continue
-                if (candidate.toInstant().isAfter(limit)) {
-                    reachedLimit = true
-                    break
-                }
-                result += candidate
-                if (result.size >= maxCount) break
+        while (iterator.hasNext()) {
+            val instant = Instant.ofEpochMilli(iterator.nextMillis())
+            if (horizon != null && instant.isAfter(horizon)) break
+            if (result.size == MAX_OCCURRENCES_PER_EVENT) {
+                throw IcsFormatException("「${event.summary}」的重复次数过多，请缩短课表日期范围后重新导出")
             }
-            if (reachedLimit) break
-            step++
+            result += instant.atZone(event.start.zone)
         }
         return (result + event.rDates).distinct()
     }
-
-    private fun periodCandidates(start: ZonedDateTime, rule: RecurrenceRule, offset: Long): List<ZonedDateTime> =
-        when (rule.frequency) {
-            "DAILY" -> listOf(start.plusDays(offset))
-            "WEEKLY" -> if (rule.byDay.isEmpty()) {
-                listOf(start.plusWeeks(offset))
-            } else {
-                val weekStart = start.plusWeeks(offset).with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
-                rule.byDay.distinct().sorted().map { day -> weekStart.with(TemporalAdjusters.nextOrSame(day)) }
-            }
-            "MONTHLY" -> listOf(start.plusMonths(offset))
-            "YEARLY" -> listOf(start.plusYears(offset))
-            else -> if (offset == 0L) listOf(start) else emptyList()
-        }
 
     // endregion
 

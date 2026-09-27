@@ -10,6 +10,8 @@
     <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
     <!-- 用户在系统「媒体管理」中授权后，批量重命名无需逐次确认。 -->
     <uses-permission android:name="android.permission.MANAGE_MEDIA" />
+    <!-- MediaStore 免确认写入还要求此权限，仅在用户开启免确认功能时申请。 -->
+    <uses-permission android:name="android.permission.ACCESS_MEDIA_LOCATION" />
 
     <application
         android:name=".CourseTagApplication"

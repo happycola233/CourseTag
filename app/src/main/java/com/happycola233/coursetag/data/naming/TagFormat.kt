@@ -23,6 +23,13 @@ data class TagFormat(val opening: String, val closing: String) {
         val start: Int
         val courseEnd: Int
         if (closing.isEmpty()) {
+            // 课程名本身可以包含分隔符，先找完整的已知课程，避免把 Computer_Science 拆成 Science。
+            var candidate = stem.indexOf(opening, 1)
+            while (candidate > 0) {
+                val course = stem.substring(candidate + opening.length)
+                if (isKnownCourse(course)) return TagMatch(stem.substring(0, candidate), course)
+                candidate = stem.indexOf(opening, candidate + opening.length)
+            }
             start = stem.lastIndexOf(opening)
             courseEnd = stem.length
         } else {

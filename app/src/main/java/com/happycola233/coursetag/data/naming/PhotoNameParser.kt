@@ -10,7 +10,7 @@ data class ParsedName(
 )
 
 /**
- * 按「当前格式优先、再依次尝试旧格式」的顺序识别文件名中的课程。
+ * 同时比较新旧格式：完整的已知课程优先，其次是有结束符的明确后缀。
  * 旧格式仅用于识别与转换，新的重命名始终使用当前格式。
  */
 class PhotoNameParser(
@@ -22,11 +22,15 @@ class PhotoNameParser(
 
     fun parse(displayName: String): ParsedName {
         val parts = FileNames.split(displayName)
-        for (format in formats) {
-            val match = format.extract(parts.stem, isKnownCourse) ?: continue
-            return ParsedName(match.stem, parts.extension, match.course, format)
-        }
-        return ParsedName(parts.stem, parts.extension, null, null)
+        // 下划线等宽松格式不能抢先吞掉 IMG_时间（课程）中的时间和括号后缀。
+        val best = formats.mapNotNull { format ->
+            format.extract(parts.stem, isKnownCourse)?.let { match -> format to match }
+        }.maxWithOrNull(
+            compareBy<Pair<TagFormat, TagMatch>> { isKnownCourse(it.second.course) }
+                .thenBy { it.first.closing.isNotEmpty() }
+                .thenBy { it.second.stem.length },
+        ) ?: return ParsedName(parts.stem, parts.extension, null, null)
+        return ParsedName(best.second.stem, parts.extension, best.second.course, best.first)
     }
 
     /** 生成使用当前格式的新文件名；[course] 为 null 表示移除课程后缀。 */

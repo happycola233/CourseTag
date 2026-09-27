@@ -69,7 +69,17 @@ data class RenameBatch(
     val createdAt: Long,
     val records: List<RenameRecord>,
     val undone: Boolean = false,
-)
+    /** 逐张记录已恢复的照片；保留原始记录，便于展示部分撤销并重试其余照片。 */
+    val revertedMediaIds: Set<Long> = emptySet(),
+) {
+    val pendingRecords: List<RenameRecord>
+        get() = if (undone) emptyList() else records.filter { it.mediaId !in revertedMediaIds }
+
+    fun withRevertedPhotos(mediaIds: Set<Long>): RenameBatch {
+        val reverted = revertedMediaIds + mediaIds
+        return copy(revertedMediaIds = reverted, undone = records.all { it.mediaId in reverted })
+    }
+}
 
 @Serializable
 data class RenameRecord(

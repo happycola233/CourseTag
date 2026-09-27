@@ -25,6 +25,7 @@ import com.happycola233.coursetag.domain.RenameChange
 import com.happycola233.coursetag.domain.RenameItem
 import com.happycola233.coursetag.domain.RenamePlan
 import com.happycola233.coursetag.domain.RenameRequest
+import com.happycola233.coursetag.domain.authorizePhotoWrites
 import com.happycola233.coursetag.domain.buildImportDraft
 import com.happycola233.coursetag.domain.courseSummaries
 import com.happycola233.coursetag.domain.planRename
@@ -33,8 +34,10 @@ import com.happycola233.coursetag.domain.withCourseRenamed
 import com.happycola233.coursetag.domain.withCoursesAdded
 import com.happycola233.coursetag.domain.withCoursesUsed
 import com.happycola233.coursetag.domain.withImportedSchedule
+import com.happycola233.coursetag.domain.withRecordedRename
 import com.happycola233.coursetag.domain.withScheduleRemoved
 import java.util.UUID
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.channels.Channel
@@ -57,7 +60,10 @@ import kotlinx.coroutines.withContext
 
 enum class MediaAccess { Unknown, Denied, Partial, Full }
 
-data class ApplyProgress(val done: Int, val total: Int)
+sealed interface ApplyProgress {
+    data class AwaitingApproval(val batch: Int, val totalBatches: Int) : ApplyProgress
+    data class Renaming(val done: Int, val total: Int) : ApplyProgress
+}
 
 data class FailedRename(val name: String, val reason: String)
 
@@ -87,7 +93,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     val access: StateFlow<MediaAccess> = mutableAccess.asStateFlow()
 
     private val photos = MutableStateFlow<List<Photo>?>(null)
-    private val reloadRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    private val reloadRequests = MutableSharedFlow<Unit>(replay = 1)
 
     /** 照片尚未读取完成时为 null。 */
     val library: StateFlow<Library?> = combine(photos, store.data, store.ready) { photos, data, ready ->
@@ -140,6 +146,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // region 重命名预览与执行
 
     private val request = MutableStateFlow<RenameRequest?>(null)
+    val hasPreview: Boolean get() = request.value != null
     private val mutableExcluded = MutableStateFlow<Set<Long>>(emptySet())
     val excluded: StateFlow<Set<Long>> = mutableExcluded.asStateFlow()
 
@@ -156,9 +163,9 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val events = Channel<UiEvent>(Channel.BUFFERED)
     val uiEvents: Flow<UiEvent> = events.receiveAsFlow()
 
-    private var pendingApply: PendingApply? = null
+    private var writeApproval: CompletableDeferred<Boolean>? = null
 
-    private class PendingApply(val request: RenameRequest, val items: List<RenameItem>, val closesPreview: Boolean)
+    private class RenameExecution(val request: RenameRequest, val items: List<RenameItem>, val closesPreview: Boolean)
 
     /** 设置待确认的重命名，界面随后进入预览页。 */
     fun preview(request: RenameRequest) {
@@ -181,7 +188,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         val plan = planRename(RenameRequest.Revert("撤销「${batch.title}」", batch), library)
         val items = plan.items.filter { it.issue == null }
         if (items.isEmpty()) {
-            message("这些照片已被移动、删除或再次改名，无法撤销")
+            val issue = plan.items.firstNotNullOfOrNull { it.issue }
+            message(issue?.message ?: "这些照片已恢复原名、被删除或再次改名，无法撤销")
             return
         }
         startApply(plan.request, items, closesPreview = false)
@@ -189,26 +197,52 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun startApply(request: RenameRequest, items: List<RenameItem>, closesPreview: Boolean) {
         if (items.isEmpty() || mutableProgress.value != null) return
-        pendingApply = PendingApply(request, items, closesPreview)
-        val intent = media.createWriteRequest(items.map { it.entry.photo.uri })
-        events.trySend(UiEvent.RequestWrite(intent.intentSender))
+        val execution = RenameExecution(request, items, closesPreview)
+        // 在启动协程前锁住确认入口，授权期间也不能重复提交。
+        mutableProgress.value = ApplyProgress.AwaitingApproval(1, 1)
+        viewModelScope.launch {
+            try {
+                if (authorize(items)) runApply(execution)
+                else message("未获得全部照片的修改权限，照片保持原样")
+            } finally {
+                mutableProgress.value = null
+            }
+        }
+    }
+
+    private suspend fun authorize(items: List<RenameItem>): Boolean {
+        val byId = items.associateBy { it.photoId }
+        return try {
+            authorizePhotoWrites(items.map { it.photoId }) { ids, batch, total ->
+                mutableProgress.value = ApplyProgress.AwaitingApproval(batch, total)
+                val approval = CompletableDeferred<Boolean>()
+                writeApproval = approval
+                try {
+                    val intent = media.createWriteRequest(ids.map { byId.getValue(it).entry.photo.uri })
+                    events.send(UiEvent.RequestWrite(intent.intentSender))
+                    approval.await()
+                } finally {
+                    writeApproval = null
+                }
+            }
+        } catch (_: SecurityException) {
+            // 权限可能在预览后被撤回；系统未授予全部写入权限时，不执行任何改名。
+            false
+        } catch (_: IllegalArgumentException) {
+            // 外部媒体库中的照片可能在预览后被删除，授权请求会失效。
+            false
+        }
     }
 
     fun onWriteResult(granted: Boolean) {
-        val pending = pendingApply ?: return
-        pendingApply = null
-        if (!granted) {
-            message("未获得修改权限，照片保持原样")
-            return
-        }
-        viewModelScope.launch { runApply(pending) }
+        writeApproval?.complete(granted)
     }
 
-    private suspend fun runApply(pending: PendingApply) {
-        val items = pending.items
-        mutableProgress.value = ApplyProgress(0, items.size)
+    private suspend fun runApply(execution: RenameExecution) {
+        val items = execution.items
+        mutableProgress.value = ApplyProgress.Renaming(0, items.size)
         val outcomes = media.rename(items.map { RenameOperation(it.photoId, it.entry.photo.uri, it.newName) }) { done ->
-            mutableProgress.value = ApplyProgress(done, items.size)
+            mutableProgress.value = ApplyProgress.Renaming(done, items.size)
         }
         val itemsById = items.associateBy { it.photoId }
         val renamed = outcomes.filterIsInstance<RenameOutcome.Renamed>()
@@ -219,36 +253,37 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         if (renamed.isNotEmpty()) {
             val batch = RenameBatch(
                 id = batchId,
-                title = pending.request.title,
+                title = execution.request.title,
                 createdAt = now,
                 records = renamed.map { RenameRecord(it.photoId, itemsById.getValue(it.photoId).entry.photo.name, it.actualName) },
             )
-            val revertedId = (pending.request as? RenameRequest.Revert)?.batch?.id
-            store.updateHistory { batches ->
-                (listOf(batch) + batches.map { if (it.id == revertedId) it.copy(undone = true) else it }).take(MAX_HISTORY)
-            }
+            val revertedId = (execution.request as? RenameRequest.Revert)?.batch?.id
+            store.updateHistory { it.withRecordedRename(batch, revertedId) }
             val usedCourses = renamed.mapNotNull { itemsById.getValue(it.photoId).newCourse }.toSet()
-            val courseRename = (pending.request as? RenameRequest.Assign)?.courseRename
+            val courseRename = (execution.request as? RenameRequest.Assign)?.courseRename
             store.update { data ->
                 val renamedData = courseRename?.let { data.withCourseRenamed(it.from, it.to, now) } ?: data
                 renamedData.withCoursesUsed(usedCourses, now)
             }
         }
         photos.value = runCatching { media.loadPhotos() }.getOrDefault(photos.value.orEmpty())
-        mutableProgress.value = null
         mutableSelection.value = emptySet()
         mutableFailures.value = failed.map { FailedRename(itemsById.getValue(it.photoId).entry.photo.name, it.reason) }
-        if (pending.closesPreview) events.send(UiEvent.Applied)
+        if (execution.closesPreview) events.send(UiEvent.Applied)
         if (renamed.isNotEmpty()) {
-            val undoable = pending.request !is RenameRequest.Revert
-            events.send(UiEvent.Message(successMessage(pending.request, items, renamed.size), batchId.takeIf { undoable }))
+            val undoable = execution.request !is RenameRequest.Revert
+            events.send(UiEvent.Message(successMessage(execution.request, items, renamed.size), batchId.takeIf { undoable }))
         } else if (failed.isNotEmpty()) {
             message("照片未能重命名")
         }
     }
 
     private fun successMessage(request: RenameRequest, items: List<RenameItem>, count: Int): String = when {
-        request is RenameRequest.Revert -> "已撤销，$count 张照片恢复原名"
+        request is RenameRequest.Revert -> if (count == request.batch.pendingRecords.size) {
+            "已撤销，$count 张照片恢复原名"
+        } else {
+            "已恢复 $count 张照片，其余照片可在记录中继续撤销"
+        }
         items.all { it.change == RenameChange.Remove } -> "已移除 $count 张照片的课程"
         items.all { it.change == RenameChange.Reformat } -> "已将 $count 张照片更新为新格式"
         request is RenameRequest.Assign && request.courseRename != null -> "已将 $count 张照片改为「${request.courseRename.to}」"
@@ -378,7 +413,6 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private companion object {
-        const val MAX_HISTORY = 50
         const val MAX_PREVIOUS_FORMATS = 5
     }
 }
