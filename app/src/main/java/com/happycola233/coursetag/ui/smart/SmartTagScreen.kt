@@ -1,11 +1,8 @@
 package com.happycola233.coursetag.ui.smart
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -14,9 +11,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -40,14 +35,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,7 +49,6 @@ import com.happycola233.coursetag.ui.Navigator
 import com.happycola233.coursetag.ui.components.BackButton
 import com.happycola233.coursetag.ui.components.EmptyState
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
-import com.happycola233.coursetag.ui.components.PhotoImage
 import com.happycola233.coursetag.ui.components.pageTopBarColors
 import com.happycola233.coursetag.ui.courses.CoursePick
 import com.happycola233.coursetag.ui.courses.CoursePickerSheet
@@ -68,7 +56,7 @@ import com.happycola233.coursetag.ui.formatCount
 import com.happycola233.coursetag.ui.formatSessionDate
 import com.happycola233.coursetag.ui.navigation.PhotoViewerRoute
 import com.happycola233.coursetag.ui.navigation.RenamePreviewRoute
-import com.happycola233.coursetag.ui.photos.SelectionMark
+import com.happycola233.coursetag.ui.photos.SelectablePhotoRow
 import com.happycola233.coursetag.ui.theme.AppSurfaces
 import com.happycola233.coursetag.ui.theme.Symbols
 
@@ -247,35 +235,12 @@ private fun SessionCard(
                 }
                 IconButton(onClick = onEditCourse) { Icon(Symbols.Edit, contentDescription = "修改课程") }
             }
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                items(group.entries, key = { it.id }) { entry ->
-                    val selected = entry.id !in excluded
-                    val alpha by animateFloatAsState(
-                        if (selected) 1f else 0.45f,
-                        MaterialTheme.motionScheme.fastEffectsSpec(),
-                        label = "smart_photo_alpha",
-                    )
-                    Box(
-                        Modifier.size(76.dp)
-                            .combinedClickable(
-                                onClick = { onTogglePhoto(entry.id, !selected) },
-                                onLongClick = { onOpenPhoto(entry) },
-                                onLongClickLabel = "查看大图",
-                            )
-                            .semantics {
-                                contentDescription = entry.photo.name
-                                role = Role.Checkbox
-                                this.selected = selected
-                            },
-                    ) {
-                        PhotoImage(entry.photo.uri, Modifier.size(76.dp).alpha(alpha), RoundedCornerShape(14.dp))
-                        SelectionMark(selected, Modifier.align(Alignment.TopEnd).padding(4.dp))
-                    }
-                }
-            }
+            SelectablePhotoRow(
+                entries = group.entries,
+                excluded = excluded,
+                onToggle = onTogglePhoto,
+                onOpen = onOpenPhoto,
+            )
             Text(
                 "已选 $includedCount / ${group.entries.size} 张",
                 Modifier.padding(horizontal = 16.dp),

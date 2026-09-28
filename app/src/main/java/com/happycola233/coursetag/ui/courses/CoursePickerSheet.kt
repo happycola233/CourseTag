@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.happycola233.coursetag.data.naming.FileNames
+import com.happycola233.coursetag.domain.CourseStatus
 import com.happycola233.coursetag.domain.CourseSummary
 import com.happycola233.coursetag.domain.PhotoEntry
 import com.happycola233.coursetag.ui.AppViewModel
@@ -209,6 +210,6 @@ private fun recommend(entries: List<PhotoEntry>): Recommendation? {
 }
 
 private fun CourseSummary.pickerDescription(): String = buildList {
-    if (linkedToSchedule) add("课表课程")
+    if (status == CourseStatus.Scheduled) add("课表课程")
     add(if (photoCount > 0) "$photoCount 张照片" else "暂无照片")
 }.joinToString(" · ")

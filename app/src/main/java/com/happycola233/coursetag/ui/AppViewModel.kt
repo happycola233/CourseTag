@@ -21,6 +21,7 @@ import com.happycola233.coursetag.domain.CourseRename
 import com.happycola233.coursetag.domain.CourseSummary
 import com.happycola233.coursetag.domain.ImportDraft
 import com.happycola233.coursetag.domain.Library
+import com.happycola233.coursetag.domain.PhotoEntry
 import com.happycola233.coursetag.domain.RenameChange
 import com.happycola233.coursetag.domain.RenameItem
 import com.happycola233.coursetag.domain.RenamePlan
@@ -96,8 +97,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     private val reloadRequests = MutableSharedFlow<Unit>(replay = 1)
 
     /** 照片尚未读取完成时为 null。 */
-    val library: StateFlow<Library?> = combine(photos, store.data, store.ready) { photos, data, ready ->
-        if (photos == null || !ready) null else Library.build(photos, data)
+    val library: StateFlow<Library?> = combine(photos, store.data, store.deviceState, store.ready) { photos, data, device, ready ->
+        if (photos == null || !ready) null else Library.build(photos, data, device)
     }.flowOn(Dispatchers.Default).stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val courses: StateFlow<List<CourseSummary>> = combine(store.data, library) { data, library ->
@@ -338,6 +339,16 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun deleteCourse(name: String) = store.update { it.withCourseDeleted(name) }
+
+    /** 文件名中的这个后缀不是课程，此后按未标记处理。 */
+    fun ignoreTag(name: String) = store.update { it.copy(ignoredTags = (it.ignoredTags + name).distinct()) }
+
+    fun restoreTag(name: String) = store.update { it.copy(ignoredTags = it.ignoredTags - name) }
+
+    /** 保留照片文件名中的课程，不再提示与上课时间不符。 */
+    fun keepConflictingCourses(entries: List<PhotoEntry>) = store.updateDeviceState { state ->
+        state.copy(confirmedCourses = state.confirmedCourses + entries.mapNotNull { entry -> entry.course?.let { entry.id to it } })
+    }
 
     // endregion
 

@@ -28,11 +28,15 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -48,6 +52,12 @@ import coil3.request.ImageRequest
 import coil3.request.crossfade
 import com.happycola233.coursetag.ui.theme.AppSurfaces
 import com.happycola233.coursetag.ui.theme.Symbols
+
+/** 以 LongArray 保存照片 ID 集合，配置变更与进程重建后保持选择。 */
+val LongSetSaver = Saver<MutableState<Set<Long>>, LongArray>(
+    save = { it.value.toLongArray() },
+    restore = { mutableStateOf(it.toSet()) },
+)
 
 /** 全局提示条，由根布局创建，各页面的 Scaffold 共用。 */
 val LocalSnackbarHostState = staticCompositionLocalOf { SnackbarHostState() }
@@ -164,17 +174,45 @@ fun EmptyState(
     }
 }
 
-/** 课程头像：以统一圆形底色展示课程名首字。 */
+/** 课程头像：以统一圆形底色展示课程名首字；[muted] 用于尚未添加到课程列表的名称。 */
 @Composable
-fun CourseAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
+fun CourseAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp, muted: Boolean = false) {
+    val colors = MaterialTheme.colorScheme
     Box(
-        modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
+        modifier.size(size).clip(CircleShape)
+            .background(if (muted) colors.surfaceContainerHighest else colors.secondaryContainer),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             name.trim().take(1).ifEmpty { "课" },
             style = if (size >= 48.dp) MaterialTheme.typography.titleLarge else MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSecondaryContainer,
+            color = if (muted) colors.onSurfaceVariant else colors.onSecondaryContainer,
+        )
+    }
+}
+
+/** 圆形色块中的图标，用于提醒卡片等需要强调状态的列表项。 */
+@Composable
+fun TonalIcon(icon: ImageVector, containerColor: Color, contentColor: Color, modifier: Modifier = Modifier) {
+    Box(modifier.size(40.dp).clip(CircleShape).background(containerColor), contentAlignment = Alignment.Center) {
+        Icon(icon, contentDescription = null, Modifier.size(22.dp), tint = contentColor)
+    }
+}
+
+/** 列表项右侧的醒目计数，例如「3 张不符」。 */
+@Composable
+fun AttentionBadge(text: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+    ) {
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelMedium,
+            maxLines = 1,
         )
     }
 }
@@ -216,14 +254,15 @@ internal fun rememberPhotoPreviewRequest(uri: Uri, size: IntSize): ImageRequest 
     }
 }
 
-/** 照片缩略图上的课程标签。 */
+/** 照片缩略图上的课程标签；[warning] 用于标出与上课时间不符的课程。 */
 @Composable
-fun CourseTagPill(text: String, modifier: Modifier = Modifier) {
+fun CourseTagPill(text: String, modifier: Modifier = Modifier, warning: Boolean = false) {
+    val colors = MaterialTheme.colorScheme
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(8.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.88f),
-        contentColor = MaterialTheme.colorScheme.onSurface,
+        color = (if (warning) colors.errorContainer else colors.surfaceContainerHighest).copy(alpha = 0.92f),
+        contentColor = if (warning) colors.onErrorContainer else colors.onSurface,
     ) {
         Text(
             text,

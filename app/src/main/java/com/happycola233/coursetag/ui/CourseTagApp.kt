@@ -25,9 +25,11 @@ import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
 import com.happycola233.coursetag.ui.components.mediaAccess
+import com.happycola233.coursetag.ui.courses.ConflictsScreen
 import com.happycola233.coursetag.ui.courses.CourseDetailScreen
 import com.happycola233.coursetag.ui.courses.ScheduleImportSheet
 import com.happycola233.coursetag.ui.home.HomeScreen
+import com.happycola233.coursetag.ui.navigation.ConflictsRoute
 import com.happycola233.coursetag.ui.navigation.CourseDetailRoute
 import com.happycola233.coursetag.ui.navigation.HistoryRoute
 import com.happycola233.coursetag.ui.navigation.HomeRoute
@@ -136,6 +138,7 @@ private fun AppNavDisplay(backStack: MutableList<NavKey>, navigator: Navigator, 
                 entry<SmartTagRoute> { SmartTagScreen(viewModel, navigator) }
                 entry<RenamePreviewRoute> { RenamePreviewScreen(viewModel, navigator) }
                 entry<CourseDetailRoute> { CourseDetailScreen(it.courseName, viewModel, navigator) }
+                entry<ConflictsRoute> { ConflictsScreen(it.courseName, viewModel, navigator) }
                 entry<PhotoViewerRoute>(metadata = PhotoViewerSceneMetadata) {
                     PhotoViewerScreen(it.photoId, viewModel, navigator, it.sourceKey)
                 }

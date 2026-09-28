@@ -7,10 +7,8 @@ import com.happycola233.coursetag.data.ics.IcsParser
 import com.happycola233.coursetag.data.media.Photo
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -47,9 +45,9 @@ class LibraryTest {
             assertEquals(listOf("大学英语", "高等数学"), summaries.map { it.name })
             assertEquals(listOf(2, 1), summaries.map { it.photoCount })
             assertNull(summaries[0].course)
-            assertFalse(summaries[0].linkedToSchedule)
+            assertEquals(CourseStatus.Detected, summaries[0].status)
             assertNotNull(summaries[1].course)
-            assertTrue(summaries[1].linkedToSchedule)
+            assertEquals(CourseStatus.Scheduled, summaries[1].status)
         }
     }
 

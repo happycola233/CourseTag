@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -18,8 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingToolbarDefaults
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
@@ -30,24 +33,27 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.happycola233.coursetag.data.schedule.WeeklySlot
 import com.happycola233.coursetag.data.schedule.weeklySlots
+import com.happycola233.coursetag.domain.CourseStatus
+import com.happycola233.coursetag.domain.CourseSummary
 import com.happycola233.coursetag.domain.RenameRequest
 import com.happycola233.coursetag.ui.AppViewModel
 import com.happycola233.coursetag.ui.Navigator
@@ -55,15 +61,19 @@ import com.happycola233.coursetag.ui.components.SelectionTopBar
 import com.happycola233.coursetag.ui.components.BackButton
 import com.happycola233.coursetag.ui.components.EmptyState
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
+import com.happycola233.coursetag.ui.components.LongSetSaver
+import com.happycola233.coursetag.ui.components.TonalIcon
 import com.happycola233.coursetag.ui.components.pageTopBarColors
 import com.happycola233.coursetag.ui.formatCount
 import com.happycola233.coursetag.ui.formatDay
 import com.happycola233.coursetag.ui.formatTime
 import com.happycola233.coursetag.ui.formatWeeks
+import com.happycola233.coursetag.ui.navigation.ConflictsRoute
 import com.happycola233.coursetag.ui.navigation.PhotoViewerRoute
 import com.happycola233.coursetag.ui.navigation.RenamePreviewRoute
 import com.happycola233.coursetag.ui.photos.PhotoGrid
 import com.happycola233.coursetag.ui.photos.PhotoSection
+import com.happycola233.coursetag.ui.photos.PhotoTag
 import com.happycola233.coursetag.ui.photos.coursePhotosGridKey
 import com.happycola233.coursetag.ui.photos.TooltipIcon
 import com.happycola233.coursetag.ui.photos.toRequest
@@ -114,10 +124,24 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
     val selectedEntries = remember(entries, selection) { entries.filter { it.id in selection } }
     BackHandler(enabled = selecting) { selection = emptySet() }
 
+    val detected = summary?.status == CourseStatus.Detected
+    val conflictCount = summary?.conflictCount ?: 0
+
     fun openPreview(request: RenameRequest) {
         selection = emptySet()
         viewModel.preview(request)
         navigator.open(RenamePreviewRoute)
+    }
+
+    fun addCourse() {
+        viewModel.addCourses(listOf(name))
+        viewModel.message("已添加「$name」")
+    }
+
+    // 忽略后本课程不再出现在列表中，页面随之返回。
+    fun ignoreName() {
+        viewModel.ignoreTag(name)
+        viewModel.message("已忽略「$name」")
     }
 
     Scaffold(
@@ -128,7 +152,7 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
             SelectionTopBar(selecting, selection.size, onCancel = { selection = emptySet() }) {
                 MediumFlexibleTopAppBar(
                     title = { Text(name, fontWeight = FontWeight.Bold) },
-                    subtitle = { Text(if (entries.isEmpty()) "暂无照片" else "${formatCount(entries.size)} 张照片") },
+                    subtitle = { Text(summary.detailDescription(entries.size)) },
                     navigationIcon = { BackButton(navigator::back) },
                     actions = {
                         Box {
@@ -142,14 +166,21 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
                                         renaming = true
                                     },
                                 )
-                                if (summary?.course == null) {
+                                if (detected) {
                                     DropdownMenuItem(
-                                        text = { Text("保存到课程列表") },
+                                        text = { Text("添加到课程") },
                                         leadingIcon = { Icon(Symbols.Add, contentDescription = null) },
                                         onClick = {
                                             menu = false
-                                            viewModel.addCourses(listOf(name))
-                                            viewModel.message("已保存「$name」")
+                                            addCourse()
+                                        },
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("忽略这个名称") },
+                                        leadingIcon = { Icon(Symbols.VisibilityOff, contentDescription = null) },
+                                        onClick = {
+                                            menu = false
+                                            ignoreName()
                                         },
                                     )
                                 }
@@ -198,8 +229,40 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
                     end = 12.dp,
                     bottom = padding.calculateBottomPadding() + 104.dp,
                 ),
-                showCourseTags = false,
+                // 课程已由页面标题说明，缩略图只标出拍摄于其他课程上课时间的照片。
+                tagOf = { entry -> entry.session?.takeIf { entry.conflictsWithSchedule }?.let { PhotoTag(it.course, warning = true) } },
                 header = {
+                    if (detected) {
+                        item(key = "detected", span = { GridItemSpan(maxLineSpan) }) {
+                            StatusCard(
+                                icon = Symbols.Sell,
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                title = "尚未添加到课程",
+                                body = "「$name」出现在 ${formatCount(entries.size)} 张照片的文件名中。" +
+                                    "如果它不是课程名称，可以忽略，这些照片将视为未标记。",
+                            ) {
+                                TextButton(onClick = ::ignoreName) { Text("忽略") }
+                                FilledTonalButton(onClick = ::addCourse, shapes = ButtonDefaults.shapes()) { Text("添加到课程") }
+                            }
+                        }
+                    }
+                    if (conflictCount > 0) {
+                        item(key = "conflicts", span = { GridItemSpan(maxLineSpan) }) {
+                            StatusCard(
+                                icon = Symbols.Error,
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                                title = "${formatCount(conflictCount)} 张照片与上课时间不符",
+                                body = "它们拍摄于其他课程的上课时间，已在照片上标出当时的课程",
+                            ) {
+                                FilledTonalButton(
+                                    onClick = { navigator.open(ConflictsRoute(name)) },
+                                    shapes = ButtonDefaults.shapes(),
+                                ) { Text("核对") }
+                            }
+                        }
+                    }
                     if (slots.isNotEmpty()) {
                         item(key = "slots", span = { GridItemSpan(maxLineSpan) }) { ScheduleSlots(slots) }
                     }
@@ -289,6 +352,50 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
     }
 }
 
+/** 课程状态提示卡片：图标、说明与操作按钮。 */
+@Composable
+private fun StatusCard(
+    icon: ImageVector,
+    containerColor: Color,
+    contentColor: Color,
+    title: String,
+    body: String,
+    actions: @Composable RowScope.() -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = AppSurfaces.card,
+        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
+    ) {
+        Column(Modifier.padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                TonalIcon(icon, containerColor, contentColor)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(title, style = MaterialTheme.typography.titleMedium)
+                    Text(body, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Row(
+                Modifier.fillMaxWidth().padding(top = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+                content = actions,
+            )
+        }
+    }
+}
+
+private fun CourseSummary?.detailDescription(photoCount: Int): String {
+    val photos = if (photoCount == 0) "暂无照片" else "${formatCount(photoCount)} 张照片"
+    val status = when (this?.status) {
+        CourseStatus.Scheduled -> "课表中的课程"
+        CourseStatus.Standalone -> "课表外的课程"
+        CourseStatus.Detected -> "尚未添加"
+        null -> return photos
+    }
+    return "$status · $photos"
+}
+
 @Composable
 private fun ScheduleSlots(slots: List<WeeklySlot>) {
     Surface(
@@ -314,9 +421,3 @@ private fun ScheduleSlots(slots: List<WeeklySlot>) {
         }
     }
 }
-
-/** 以 LongArray 保存选中照片，配置变更与进程重建后保持选择。 */
-private val LongSetSaver = Saver<MutableState<Set<Long>>, LongArray>(
-    save = { it.value.toLongArray() },
-    restore = { mutableStateOf(it.toSet()) },
-)

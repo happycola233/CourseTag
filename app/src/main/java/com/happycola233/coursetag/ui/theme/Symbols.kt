@@ -124,6 +124,9 @@ object Symbols {
     val SettingsFilled: ImageVector
         @Composable get() = ImageVector.vectorResource(R.drawable.symbol_settings_filled)
 
+    val Sort: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.symbol_sort)
+
     val SwapHoriz: ImageVector
         @Composable get() = ImageVector.vectorResource(R.drawable.symbol_swap_horiz)
 
@@ -138,6 +141,12 @@ object Symbols {
 
     val VerifiedUser: ImageVector
         @Composable get() = ImageVector.vectorResource(R.drawable.symbol_verified_user)
+
+    val Visibility: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.symbol_visibility)
+
+    val VisibilityOff: ImageVector
+        @Composable get() = ImageVector.vectorResource(R.drawable.symbol_visibility_off)
 
     val WandStars: ImageVector
         @Composable get() = ImageVector.vectorResource(R.drawable.symbol_wand_stars)

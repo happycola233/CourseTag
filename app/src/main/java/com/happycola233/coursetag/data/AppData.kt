@@ -9,6 +9,18 @@ data class AppData(
     val courses: List<Course> = emptyList(),
     val schedules: List<Schedule> = emptyList(),
     val settings: AppSettings = AppSettings(),
+    /** 符合命名格式、但用户确认不是课程的文件名后缀（如「副本」「第二页」），识别时视为未标记。 */
+    val ignoredTags: List<String> = emptyList(),
+)
+
+/** 只保存在本机的状态：媒体 ID 绑定本机媒体库，因此单独存放、不参与备份。 */
+@Serializable
+data class DeviceState(
+    /**
+     * 用户确认保留的课程：媒体 ID → 确认时文件名中的课程。
+     * 这些照片拍摄于其他课程的上课时间，文件名中的课程再次变化后会重新提示。
+     */
+    val confirmedCourses: Map<Long, String> = emptyMap(),
 )
 
 @Serializable

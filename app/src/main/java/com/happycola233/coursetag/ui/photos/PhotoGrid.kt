@@ -76,6 +76,14 @@ data class PhotoSection(
     val entries: List<PhotoEntry>,
 )
 
+/** 缩略图角落的标签；[warning] 表示照片的课程与上课时间不符。 */
+data class PhotoTag(val text: String, val warning: Boolean = false)
+
+/** 默认在缩略图上显示文件名中的课程。 */
+val CourseTagOf: (PhotoEntry) -> PhotoTag? = { entry ->
+    entry.course?.let { PhotoTag(it, warning = entry.conflictsWithSchedule) }
+}
+
 private val GridSpacing = 3.dp
 
 /**
@@ -96,7 +104,7 @@ fun PhotoGrid(
     state: LazyGridState = rememberLazyGridState(),
     sourceKey: String? = null,
     contentPadding: PaddingValues = PaddingValues(),
-    showCourseTags: Boolean = true,
+    tagOf: (PhotoEntry) -> PhotoTag? = CourseTagOf,
     /** 为 true 时分组标题始终提供整组选择，否则只在多选状态下出现。 */
     alwaysShowSectionSelect: Boolean = false,
     header: LazyGridScope.() -> Unit = {},
@@ -206,7 +214,7 @@ fun PhotoGrid(
                     entry = entry,
                     selected = entry.id in selection,
                     selecting = selecting,
-                    showCourseTag = showCourseTags,
+                    tag = tagOf(entry),
                     onActivate = { activate(entry.id) },
                     onSelect = { toggle(entry.id) },
                 )
@@ -249,7 +257,7 @@ private fun PhotoGridItem(
     entry: PhotoEntry,
     selected: Boolean,
     selecting: Boolean,
-    showCourseTag: Boolean,
+    tag: PhotoTag?,
     onActivate: () -> Unit,
     onSelect: () -> Unit,
 ) {
@@ -290,10 +298,11 @@ private fun PhotoGridItem(
             RoundedCornerShape(corner),
         )
         if (selecting) SelectionMark(selected, Modifier.align(Alignment.TopStart).padding(6.dp))
-        if (showCourseTag && course != null) {
+        if (tag != null) {
             CourseTagPill(
-                course,
+                tag.text,
                 Modifier.align(Alignment.BottomStart).padding(start = inset + 4.dp, end = inset + 4.dp, bottom = inset + 4.dp),
+                warning = tag.warning,
             )
         }
     }

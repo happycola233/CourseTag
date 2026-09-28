@@ -33,9 +33,11 @@ class AppStore(directory: File, private val scope: CoroutineScope) {
         ListSerializer(RenameBatch.serializer()),
         emptyList(),
     )
+    private val deviceFile = PersistedValue(File(directory, "device_state.json"), DeviceState.serializer(), DeviceState())
 
     val data: StateFlow<AppData> = dataFile.state
     val history: StateFlow<List<RenameBatch>> = historyFile.state
+    val deviceState: StateFlow<DeviceState> = deviceFile.state
 
     /** 读取完成后变为 true；此前界面应视为正在加载。 */
     val ready: StateFlow<Boolean> get() = dataFile.ready
@@ -43,11 +45,14 @@ class AppStore(directory: File, private val scope: CoroutineScope) {
     init {
         dataFile.load()
         historyFile.load()
+        deviceFile.load()
     }
 
     fun update(transform: (AppData) -> AppData) = dataFile.update(transform)
 
     fun updateHistory(transform: (List<RenameBatch>) -> List<RenameBatch>) = historyFile.update(transform)
+
+    fun updateDeviceState(transform: (DeviceState) -> DeviceState) = deviceFile.update(transform)
 
     private inner class PersistedValue<T>(file: File, private val serializer: KSerializer<T>, initial: T) {
         private val atomicFile = AtomicFile(file)

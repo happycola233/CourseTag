@@ -19,6 +19,10 @@ data object RenamePreviewRoute : Route
 @Serializable
 data class CourseDetailRoute(val courseName: String) : Route
 
+/** 核对与上课时间不符的照片；[courseName] 不为空时只显示该课程的照片。 */
+@Serializable
+data class ConflictsRoute(val courseName: String? = null) : Route
+
 @Serializable
 data class PhotoViewerRoute(val photoId: Long, val sourceKey: String? = null) : Route
 
