@@ -65,7 +65,7 @@ data class Library(
     val albums: List<Album>,
     val parser: PhotoNameParser,
     val hasSchedule: Boolean,
-    /** 当前生效的忽略后缀；已成为课程的名称不再忽略。 */
+    /** 当前生效的忽略后缀；已添加到课程列表的名称不再忽略。 */
     val ignoredTagNames: List<String> = emptyList(),
 ) {
     val byId: Map<Long, PhotoEntry> = entries.associateBy { it.id }
@@ -83,16 +83,18 @@ data class Library(
     companion object {
         fun build(photos: List<Photo>, data: AppData, deviceState: DeviceState = DeviceState()): Library {
             val settings = data.settings
-            val knownCourses = buildSet {
-                data.courses.forEach { add(it.name) }
+            val savedCourseNames = data.courses.mapTo(mutableSetOf()) { it.name }
+            val knownCourseNames = buildSet {
+                addAll(savedCourseNames)
                 data.schedules.forEach { schedule ->
                     schedule.courseNames().forEach { add(FileNames.sanitizeCourseName(it)) }
                 }
             }
-            val ignoredTagNames = data.ignoredTags.filter { it !in knownCourses }
+            // 课表名称仍用于识别旧照片，但课程从列表删除后，应允许在「待添加」中忽略。
+            val ignoredTagNames = data.ignoredTags.filter { it !in savedCourseNames }
             val ignoredTagSet = ignoredTagNames.toSet()
             val parser = PhotoNameParser(settings.tagFormat, settings.previousFormats, { it in ignoredTagSet }) {
-                it in knownCourses
+                it in knownCourseNames
             }
             val index = ClassIndex(
                 schedules = data.schedules,

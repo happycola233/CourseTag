@@ -64,6 +64,24 @@ class TagFormatTest {
     }
 
     @Test
+    fun ignoredSuffixPreservesTimestampWhenUnderscoreIsCurrentOrPrevious() {
+        val formats = listOf(TagFormat.Default, TagFormatPreset.Underscore.format)
+        val stem = "IMG_20260927_143021（副本）"
+        for (current in formats) {
+            val parser = PhotoNameParser(current, formats - current, isIgnored = { it == "副本" }, isKnownCourse = unknown)
+            val parsed = parser.parse("$stem.jpg")
+
+            assertEquals(ParsedName(stem, ".jpg", null, null, ignoredTag = "副本"), parsed)
+            assertEquals("$stem.jpg", parser.compose(parsed, null))
+            val taggedName = parser.compose(parsed, "高等数学")
+            assertEquals(current.compose(stem, "高等数学") + ".jpg", taggedName)
+            val tagged = parser.parse(taggedName)
+            assertEquals("高等数学", tagged.course)
+            assertEquals("$stem.jpg", parser.compose(tagged, null))
+        }
+    }
+
+    @Test
     fun allPresetMigrationsKeepCourseAndOriginalStem() {
         val stem = "IMG_20260927_143021"
         val course = "大学物理A（下）"
@@ -88,10 +106,18 @@ class TagFormatTest {
     @Test
     fun knownCurrentCourseOutranksAnInnerOldFormat() {
         val course = "大学物理（下）"
-        val parser = PhotoNameParser(TagFormatPreset.Underscore.format, listOf(TagFormat.Default)) { it == course }
-        val parsed = parser.parse("IMG_0001_大学物理（下）.jpg")
-        assertEquals("IMG_0001", parsed.stem)
-        assertEquals(course, parsed.course)
-        assertEquals(TagFormatPreset.Underscore.format, parsed.format)
+        for (ignoreInnerSuffix in listOf(false, true)) {
+            val parser = PhotoNameParser(
+                TagFormatPreset.Underscore.format,
+                listOf(TagFormat.Default),
+                isIgnored = { ignoreInnerSuffix && it == "下" },
+                isKnownCourse = { it == course },
+            )
+            val parsed = parser.parse("IMG_0001_大学物理（下）.jpg")
+            assertEquals("IMG_0001", parsed.stem)
+            assertEquals(course, parsed.course)
+            assertEquals(TagFormatPreset.Underscore.format, parsed.format)
+            assertNull(parsed.ignoredTag)
+        }
     }
 }

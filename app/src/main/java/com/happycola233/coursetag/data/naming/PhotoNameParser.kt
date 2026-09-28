@@ -14,7 +14,7 @@ data class ParsedName(
 /**
  * 同时比较新旧格式：完整的已知课程优先，其次是有结束符的明确后缀。
  * 旧格式仅用于识别与转换，新的重命名始终使用当前格式。
- * 被忽略的后缀不参与识别，文件名按未标记处理，再次标记时课程追加在该后缀之后。
+ * 最佳匹配的后缀若已被忽略，文件名按未标记处理，再次标记时课程追加在该后缀之后。
  */
 class PhotoNameParser(
     private val current: TagFormat,
@@ -27,14 +27,17 @@ class PhotoNameParser(
     fun parse(displayName: String): ParsedName {
         val parts = FileNames.split(displayName)
         // 下划线等宽松格式不能抢先吞掉 IMG_时间（课程）中的时间和括号后缀。
-        val (ignored, matches) = formats.mapNotNull { format ->
+        val best = formats.mapNotNull { format ->
             format.extract(parts.stem, isKnownCourse)?.let { match -> format to match }
-        }.partition { isIgnored(it.second.course) }
-        val best = matches.maxWithOrNull(
+        }.maxWithOrNull(
             compareBy<Pair<TagFormat, TagMatch>> { isKnownCourse(it.second.course) }
                 .thenBy { it.first.closing.isNotEmpty() }
                 .thenBy { it.second.stem.length },
-        ) ?: return ParsedName(parts.stem, parts.extension, null, null, ignored.firstOrNull()?.second?.course)
+        )
+        // 忽略最佳匹配后保留完整文件名，不能再让其他格式把时间戳和备注当成课程。
+        if (best == null || isIgnored(best.second.course)) {
+            return ParsedName(parts.stem, parts.extension, null, null, ignoredTag = best?.second?.course)
+        }
         return ParsedName(best.second.stem, parts.extension, best.second.course, best.first)
     }
 

@@ -2,7 +2,9 @@ package com.happycola233.coursetag.domain
 
 import android.net.Uri
 import com.happycola233.coursetag.data.AppData
+import com.happycola233.coursetag.data.ClassMeeting
 import com.happycola233.coursetag.data.Course
+import com.happycola233.coursetag.data.Schedule
 import com.happycola233.coursetag.data.ics.IcsParser
 import com.happycola233.coursetag.data.media.Photo
 import java.time.ZoneId
@@ -67,6 +69,47 @@ class LibraryTest {
 
         assertEquals(listOf("最近使用", "较早使用", "C课程", "A课程", "B课程"), summaries.map { it.name })
         assertEquals(listOf(0, 2, 3, 1, 1), summaries.map { it.photoCount })
+    }
+
+    @Test
+    fun deletedScheduleCourseCanBeIgnoredAndRestored() {
+        val name = "高等数学"
+        val data = AppData(
+            courses = listOf(Course(id = "math", name = name, scheduleNames = listOf(name), createdAt = 0)),
+            schedules = listOf(Schedule(
+                id = "semester",
+                name = "秋季课表",
+                importedAt = 0,
+                zoneId = "UTC",
+                firstWeekEpochDay = 0,
+                meetings = listOf(ClassMeeting(course = name, start = 0, end = 3_600_000)),
+            )),
+        ).withCourseDeleted(name)
+        val photos = photosFor(name)
+        val detected = courseSummaries(data, Library.build(photos, data)).single()
+        assertEquals(CourseStatus.Detected, detected.status)
+
+        val ignoredData = data.copy(ignoredTags = listOf(name))
+        val ignoredLibrary = Library.build(photos, ignoredData)
+        assertNull(ignoredLibrary.entries.single().course)
+        assertEquals(name, ignoredLibrary.entries.single().parsed.ignoredTag)
+        assertEquals(listOf(IgnoredTag(name, 1)), ignoredLibrary.ignoredTags)
+        assertEquals(0, ignoredLibrary.taggedCount)
+        assertEquals(emptyList<CourseSummary>(), courseSummaries(ignoredData, ignoredLibrary))
+        // 忽略只改变文件名识别，课表仍可为这些未标记照片推荐课程。
+        assertEquals(name, ignoredLibrary.untaggedClassPhotos.single().session?.course)
+
+        val restoredData = ignoredData.copy(ignoredTags = ignoredData.ignoredTags - name)
+        val restoredLibrary = Library.build(photos, restoredData)
+        assertEquals(name, restoredLibrary.entries.single().course)
+        assertEquals(emptyList<IgnoredTag>(), restoredLibrary.ignoredTags)
+        assertEquals(CourseStatus.Detected, courseSummaries(restoredData, restoredLibrary).single().status)
+
+        // 显式重新添加课程后，仍应优先识别已保存的课程名。
+        val addedLibrary = Library.build(photos, ignoredData.withCoursesAdded(listOf(name), now = 1))
+        assertEquals(name, addedLibrary.entries.single().course)
+        assertNull(addedLibrary.entries.single().parsed.ignoredTag)
+        assertEquals(emptyList<IgnoredTag>(), addedLibrary.ignoredTags)
     }
 
     private fun photosFor(vararg courseNames: String): List<Photo> = courseNames.mapIndexed { index, courseName ->
