@@ -39,13 +39,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TooltipAnchorPosition
 import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -54,8 +54,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.happycola233.coursetag.R
 import com.happycola233.coursetag.domain.Library
 import com.happycola233.coursetag.domain.PhotoEntry
 import com.happycola233.coursetag.domain.RenameRequest
@@ -64,10 +66,10 @@ import com.happycola233.coursetag.ui.MediaAccess
 import com.happycola233.coursetag.ui.Navigator
 import com.happycola233.coursetag.ui.components.EmptyState
 import com.happycola233.coursetag.ui.components.CollapsingTopBar
+import com.happycola233.coursetag.ui.components.SelectionTopBar
 import com.happycola233.coursetag.ui.components.GroupedItem
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
 import com.happycola233.coursetag.ui.components.openAppSettings
-import com.happycola233.coursetag.ui.components.pageTopBarColors
 import com.happycola233.coursetag.ui.components.rememberMediaPermissionRequest
 import com.happycola233.coursetag.ui.components.rememberScheduleFilePicker
 import com.happycola233.coursetag.ui.courses.CoursePick
@@ -83,6 +85,8 @@ import com.happycola233.coursetag.ui.theme.Symbols
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 enum class PhotoFilter(val label: String) {
     All("全部"),
@@ -96,19 +100,20 @@ fun PhotosScreen(viewModel: AppViewModel, navigator: Navigator) {
     val library by viewModel.library.collectAsStateWithLifecycle()
     val access by viewModel.access.collectAsStateWithLifecycle()
     val selection by viewModel.selection.collectAsStateWithLifecycle()
+    var rangeSelecting by remember { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf(PhotoFilter.All) }
     var albumId by rememberSaveable { mutableStateOf<Long?>(null) }
     var pickerOpen by rememberSaveable { mutableStateOf(false) }
-    val selecting = selection.isNotEmpty()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val selecting = selection.isNotEmpty() || rangeSelecting
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(canScroll = { !rangeSelecting })
     val currentLibrary = library
 
     BackHandler(enabled = selecting) { viewModel.clearSelection() }
 
-    val sections = remember(currentLibrary, filter, albumId) {
-        currentLibrary?.let { buildSections(it, filter, albumId) }.orEmpty()
+    val sections by produceState<List<PhotoSection>?>(null, currentLibrary, filter, albumId) {
+        value = currentLibrary?.let { withContext(Dispatchers.Default) { buildSections(it, filter, albumId) } }
     }
-    val visibleIds = remember(sections) { sections.flatMap { section -> section.entries.map { it.id } } }
+    val visibleIds = remember(sections) { sections.orEmpty().flatMap { section -> section.entries.map { it.id } } }
     val selectedEntries = remember(selection, currentLibrary) { selection.mapNotNull { currentLibrary?.byId?.get(it) } }
 
     fun openPreview(request: RenameRequest) {
@@ -122,23 +127,17 @@ fun PhotosScreen(viewModel: AppViewModel, navigator: Navigator) {
         contentWindowInsets = WindowInsets(0),
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
-            if (selecting) {
-                TopAppBar(
-                    title = { Text("已选择 ${selection.size} 张", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = viewModel::clearSelection) { Icon(Symbols.Close, contentDescription = "取消选择") }
-                    },
-                    actions = {
-                        val allSelected = visibleIds.isNotEmpty() && selection.containsAll(visibleIds)
-                        IconButton(onClick = { viewModel.setSelection(if (allSelected) emptySet() else selection + visibleIds) }) {
-                            Icon(Symbols.SelectAll, contentDescription = if (allSelected) "取消全选" else "全选")
-                        }
-                    },
-                    colors = pageTopBarColors(),
-                )
-            } else {
+            SelectionTopBar(
+                selecting = selecting, count = selection.size, onCancel = viewModel::clearSelection,
+                actions = {
+                    val allSelected = visibleIds.isNotEmpty() && selection.containsAll(visibleIds)
+                    IconButton(onClick = { viewModel.setSelection(if (allSelected) emptySet() else selection + visibleIds) }) {
+                        Icon(Symbols.SelectAll, contentDescription = if (allSelected) "取消全选" else "全选")
+                    }
+                },
+            ) {
                 CollapsingTopBar(
-                    title = "照片",
+                    title = stringResource(R.string.app_name),
                     subtitle = currentLibrary?.takeIf { access != MediaAccess.Denied }?.let(::librarySummary),
                     state = scrollBehavior.state,
                 )
@@ -148,19 +147,21 @@ fun PhotosScreen(viewModel: AppViewModel, navigator: Navigator) {
         Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
             when {
                 access == MediaAccess.Denied -> PermissionRequest(viewModel)
-                currentLibrary == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(64.dp))
+                currentLibrary == null || sections == null -> LoadingIndicator(Modifier.align(Alignment.Center).size(64.dp))
                 else -> PhotoGrid(
-                    sections = sections,
+                    sourceKey = PhotosGridKey,
+                    sections = sections.orEmpty(),
                     selection = selection,
+                    onRangeSelectionChange = { rangeSelecting = it },
                     onSelectionChange = viewModel::setSelection,
                     onOpen = { entry, ids ->
                         viewModel.viewerPhotoIds = ids
-                        navigator.open(PhotoViewerRoute(entry.id))
+                        navigator.open(PhotoViewerRoute(entry.id, PhotosGridKey))
                     },
                     contentPadding = PaddingValues(
                         start = 12.dp,
                         end = 12.dp,
-                        bottom = if (selecting) 104.dp else 16.dp,
+                        bottom = 104.dp,
                     ),
                     alwaysShowSectionSelect = filter == PhotoFilter.InClass,
                     header = {
@@ -171,7 +172,6 @@ fun PhotosScreen(viewModel: AppViewModel, navigator: Navigator) {
                             onFilterChange = { filter = it },
                             albumId = albumId,
                             onAlbumChange = { albumId = it },
-                            showBanners = !selecting,
                             viewModel = viewModel,
                             onOpenSmartTag = {
                                 viewModel.resetSmartDraft()
@@ -187,7 +187,7 @@ fun PhotosScreen(viewModel: AppViewModel, navigator: Navigator) {
                                 )
                             },
                         )
-                        if (sections.isEmpty()) {
+                        if (sections.orEmpty().isEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) { FilterEmptyState(filter, currentLibrary, viewModel) }
                         }
                     },
@@ -305,7 +305,6 @@ private fun LazyGridScope.photoHeader(
     onFilterChange: (PhotoFilter) -> Unit,
     albumId: Long?,
     onAlbumChange: (Long?) -> Unit,
-    showBanners: Boolean,
     viewModel: AppViewModel,
     onOpenSmartTag: () -> Unit,
     onConvertFormat: () -> Unit,
@@ -313,7 +312,6 @@ private fun LazyGridScope.photoHeader(
     item(key = "filters", span = { GridItemSpan(maxLineSpan) }, contentType = "filters") {
         FilterRow(library, filter, onFilterChange, albumId, onAlbumChange)
     }
-    if (!showBanners) return
     val pending = library.untaggedClassPhotos
     if (library.hasSchedule && pending.isNotEmpty() && (filter == PhotoFilter.All || filter == PhotoFilter.InClass)) {
         item(key = "smart", span = { GridItemSpan(maxLineSpan) }, contentType = "banner") {

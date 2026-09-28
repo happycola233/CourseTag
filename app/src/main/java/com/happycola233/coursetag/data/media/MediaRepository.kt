@@ -27,6 +27,7 @@ data class Photo(
     val albumName: String,
     /** 拍摄时间；缺少拍摄信息时退回文件修改时间。 */
     val takenAt: Long,
+    /** 已根据媒体方向校正的显示尺寸，与图片解码后的方向一致。 */
     val width: Int,
     val height: Int,
 )
@@ -57,6 +58,7 @@ class MediaRepository(context: Context) {
             MediaStore.Images.Media.DATE_MODIFIED,
             MediaStore.Images.Media.WIDTH,
             MediaStore.Images.Media.HEIGHT,
+            MediaStore.Images.Media.ORIENTATION,
         )
         val photos = mutableListOf<Photo>()
         resolver.query(collection, projection, null, null, null)?.use { cursor ->
@@ -70,11 +72,14 @@ class MediaRepository(context: Context) {
             val modifiedColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.DATE_MODIFIED)
             val widthColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.WIDTH)
             val heightColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.HEIGHT)
+            val orientationColumn = cursor.getColumnIndexOrThrow(MediaStore.Images.Media.ORIENTATION)
             while (cursor.moveToNext()) {
                 val name = cursor.getString(nameColumn) ?: continue
                 val id = cursor.getLong(idColumn)
                 val taken = cursor.getLong(takenColumn)
                 val folder = cursor.getString(folderColumn).orEmpty()
+                val orientation = cursor.getInt(orientationColumn)
+                val swapsDimensions = orientation == 90 || orientation == 270
                 photos += Photo(
                     id = id,
                     uri = ContentUris.withAppendedId(collection, id),
@@ -85,8 +90,8 @@ class MediaRepository(context: Context) {
                     albumName = cursor.getString(albumNameColumn)
                         ?: folder.trimEnd('/').substringAfterLast('/').ifEmpty { "未命名相册" },
                     takenAt = if (taken > 0) taken else cursor.getLong(modifiedColumn) * 1000,
-                    width = cursor.getInt(widthColumn),
-                    height = cursor.getInt(heightColumn),
+                    width = cursor.getInt(if (swapsDimensions) heightColumn else widthColumn),
+                    height = cursor.getInt(if (swapsDimensions) widthColumn else heightColumn),
                 )
             }
         }

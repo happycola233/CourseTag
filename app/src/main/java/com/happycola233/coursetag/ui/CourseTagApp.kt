@@ -33,6 +33,7 @@ import com.happycola233.coursetag.ui.navigation.HistoryRoute
 import com.happycola233.coursetag.ui.navigation.HomeRoute
 import com.happycola233.coursetag.ui.navigation.LicensesRoute
 import com.happycola233.coursetag.ui.navigation.NamingFormatRoute
+import com.happycola233.coursetag.ui.navigation.PhotoViewerSceneMetadata
 import com.happycola233.coursetag.ui.navigation.PhotoViewerRoute
 import com.happycola233.coursetag.ui.navigation.RenamePreviewRoute
 import com.happycola233.coursetag.ui.navigation.SmartTagRoute
@@ -135,7 +136,9 @@ private fun AppNavDisplay(backStack: MutableList<NavKey>, navigator: Navigator, 
                 entry<SmartTagRoute> { SmartTagScreen(viewModel, navigator) }
                 entry<RenamePreviewRoute> { RenamePreviewScreen(viewModel, navigator) }
                 entry<CourseDetailRoute> { CourseDetailScreen(it.courseName, viewModel, navigator) }
-                entry<PhotoViewerRoute> { PhotoViewerScreen(it.photoId, viewModel, navigator) }
+                entry<PhotoViewerRoute>(metadata = PhotoViewerSceneMetadata) {
+                    PhotoViewerScreen(it.photoId, viewModel, navigator, it.sourceKey)
+                }
                 entry<NamingFormatRoute> { NamingFormatScreen(viewModel, navigator) }
                 entry<HistoryRoute> { HistoryScreen(viewModel, navigator) }
                 entry<LicensesRoute> { LicensesScreen(navigator) }

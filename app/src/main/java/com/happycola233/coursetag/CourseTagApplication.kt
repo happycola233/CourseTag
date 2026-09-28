@@ -1,11 +1,19 @@
 package com.happycola233.coursetag
 
 import android.app.Application
+import android.content.Context
+import coil3.ImageLoader
+import coil3.SingletonImageLoader
+import com.happycola233.coursetag.data.media.PhotoThumbnailFetcher
 import com.happycola233.coursetag.data.AppStore
 import com.happycola233.coursetag.data.media.MediaRepository
 import kotlinx.coroutines.MainScope
 
-class CourseTagApplication : Application() {
+class CourseTagApplication : Application(), SingletonImageLoader.Factory {
+    override fun newImageLoader(context: Context): ImageLoader = ImageLoader.Builder(context)
+        .components { add(PhotoThumbnailFetcher.Factory()) }
+        .build()
+
     /** 进程级单例：数据存储需要在界面销毁后继续完成写盘。 */
     val store: AppStore by lazy { AppStore(filesDir, MainScope()) }
     val media: MediaRepository by lazy { MediaRepository(this) }

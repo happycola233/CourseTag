@@ -1,6 +1,10 @@
 package com.happycola233.coursetag.ui.components
 
 import android.net.Uri
+import com.happycola233.coursetag.data.media.PhotoThumbnail
+import com.happycola233.coursetag.data.media.PhotoThumbnailSize
+import com.happycola233.coursetag.data.media.thumbnailCacheKey
+import com.happycola233.coursetag.data.media.previewCacheKey
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +27,7 @@ import androidx.compose.material3.TopAppBarColors
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,12 +35,16 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.crossfade
 import com.happycola233.coursetag.ui.theme.AppSurfaces
 import com.happycola233.coursetag.ui.theme.Symbols
 
@@ -184,11 +193,38 @@ fun CourseAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) 
 @Composable
 fun PhotoImage(uri: Uri, modifier: Modifier = Modifier, shape: Shape = RoundedCornerShape(12.dp)) {
     AsyncImage(
-        model = uri,
+        model = rememberPhotoThumbnailRequest(uri),
         contentDescription = null,
         contentScale = ContentScale.Crop,
         modifier = modifier.clip(shape).background(MaterialTheme.colorScheme.surfaceContainerHighest),
     )
+}
+
+/** 缩略图和预览分别缓存，避免一张大图挤占网格缓存或触发重复解码。 */
+@Composable
+internal fun rememberPhotoThumbnailRequest(uri: Uri): ImageRequest {
+    val context = LocalContext.current
+    return remember(context, uri) {
+        ImageRequest.Builder(context)
+            .data(if (uri.scheme == "content" && uri.authority == "media") PhotoThumbnail(uri) else uri)
+            .size(PhotoThumbnailSize)
+            .memoryCacheKey(thumbnailCacheKey(uri))
+            .build()
+    }
+}
+
+@Composable
+internal fun rememberPhotoPreviewRequest(uri: Uri, size: IntSize): ImageRequest {
+    val context = LocalContext.current
+    return remember(context, uri, size) {
+        ImageRequest.Builder(context)
+            .data(uri)
+            .memoryCacheKey(previewCacheKey(uri))
+            .placeholderMemoryCacheKey(thumbnailCacheKey(uri))
+            .crossfade(160)
+            .size(size.width, size.height)
+            .build()
+    }
 }
 
 /** 照片缩略图上的课程标签。 */

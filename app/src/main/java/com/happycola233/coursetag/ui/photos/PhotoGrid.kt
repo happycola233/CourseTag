@@ -32,18 +32,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.changedToUp
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
@@ -87,18 +92,38 @@ fun PhotoGrid(
     onSelectionChange: (Set<Long>) -> Unit,
     onOpen: (PhotoEntry, List<Long>) -> Unit,
     modifier: Modifier = Modifier,
+    onRangeSelectionChange: (Boolean) -> Unit = {},
     state: LazyGridState = rememberLazyGridState(),
+    sourceKey: String? = null,
     contentPadding: PaddingValues = PaddingValues(),
     showCourseTags: Boolean = true,
     /** 为 true 时分组标题始终提供整组选择，否则只在多选状态下出现。 */
     alwaysShowSectionSelect: Boolean = false,
     header: LazyGridScope.() -> Unit = {},
 ) {
+    val gridOrigin = remember { mutableStateOf(Offset.Zero) }
+    val layoutDirection = LocalLayoutDirection.current
+    val contentOrigin = with(LocalDensity.current) {
+        Offset(contentPadding.calculateLeftPadding(layoutDirection).toPx(), contentPadding.calculateTopPadding().toPx())
+    }
+    var rangeSelecting by remember { mutableStateOf(false) }
+    val returnState = LocalPhotoGridReturnState.current
+    val gridState = sourceKey?.let { returnState?.gridState(it) } ?: state
     val orderedIds = remember(sections) { sections.flatMap { section -> section.entries.map { it.id } } }
     val indexById = remember(orderedIds) { orderedIds.withIndex().associate { it.value to it.index } }
     val entryById = remember(sections) { sections.flatMap { it.entries }.associateBy { it.id } }
+    // 预先计算分组标题占位，点按时只保存引用，不在触摸回调里遍历整个图库。
+    val gridIndexById = remember(sections) {
+        buildMap {
+            var index = 0
+            sections.forEach { section ->
+                index++
+                section.entries.forEach { put(it.id, index++) }
+            }
+        }
+    }
     val haptics = LocalHapticFeedback.current
-    val selecting = selection.isNotEmpty()
+    val selecting = selection.isNotEmpty() || rangeSelecting
 
     fun toggle(id: Long) {
         haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
@@ -106,23 +131,32 @@ fun PhotoGrid(
     }
 
     fun activate(id: Long) {
-        if (selecting) toggle(id) else entryById[id]?.let { onOpen(it, orderedIds) }
+        if (selecting) toggle(id) else entryById[id]?.let {
+            sourceKey?.let { key -> returnState?.open(key, id, gridState, gridIndexById, sections.size) { gridOrigin.value } }
+            onOpen(it, orderedIds)
+        }
     }
 
+    val latestContentOrigin by rememberUpdatedState(contentOrigin)
     val latestSelection by rememberUpdatedState(selection)
     val latestIds by rememberUpdatedState(orderedIds)
     val latestIndex by rememberUpdatedState(indexById)
     val latestOnSelectionChange by rememberUpdatedState(onSelectionChange)
-    val latestActivate by rememberUpdatedState(::activate)
+    val latestOnRangeSelectionChange by rememberUpdatedState(onRangeSelectionChange)
+    // 局部函数引用的相等性不包含捕获的 selection，可能让 rememberUpdatedState 保留旧回调。
+    // 使用捕获当前状态的 lambda，长按进入多选后下一次触摸才能走勾选分支。
+    val latestActivate by rememberUpdatedState({ id: Long -> activate(id) })
     val threshold = with(LocalDensity.current) { 72.dp.toPx() }
-    val dragSelection = remember(state, haptics) {
+    val dragSelection = remember(gridState, haptics) {
         DragSelection(
-            state = state,
+            state = gridState,
+            photoIdAt = { gridState.photoIdAt(it - latestContentOrigin) },
             haptics = haptics,
             indexOf = { latestIndex[it] },
             idsBetween = { from, to -> latestIds.subList(from, to + 1) },
             selection = { latestSelection },
             onSelectionChange = { latestOnSelectionChange(it) },
+            onRangeSelectionChange = { rangeSelecting = it; latestOnRangeSelectionChange(it) },
         )
     }
 
@@ -131,7 +165,7 @@ fun PhotoGrid(
         val speed = dragSelection.autoScrollSpeed
         if (speed != 0f) {
             while (isActive) {
-                state.scrollBy(speed)
+                gridState.scrollBy(speed)
                 dragSelection.refresh()
                 delay(10)
             }
@@ -140,11 +174,12 @@ fun PhotoGrid(
 
     LazyVerticalGrid(
         columns = GridCells.Adaptive(88.dp),
-        state = state,
-        modifier = modifier.photoGestures(
-            state = state,
+        state = gridState,
+        modifier = modifier.onGloballyPositioned { gridOrigin.value = it.positionInRoot() + contentOrigin }.photoGestures(
+            state = gridState,
             dragSelection = dragSelection,
             autoScrollThreshold = threshold,
+            contentOrigin = { latestContentOrigin },
             onTap = { latestActivate(it) },
         ),
         contentPadding = contentPadding,
@@ -167,6 +202,7 @@ fun PhotoGrid(
             }
             items(section.entries, key = { it.id }, contentType = { "photo" }) { entry ->
                 PhotoGridItem(
+                    sourceKey = sourceKey,
                     entry = entry,
                     selected = entry.id in selection,
                     selecting = selecting,
@@ -191,13 +227,16 @@ private fun SectionHeader(section: PhotoSection, showSelect: Boolean, allSelecte
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        if (showSelect) {
-            IconButton(onClick = { onToggle(!allSelected) }) {
-                Icon(
-                    if (allSelected) Symbols.CheckCircleFilled else Symbols.Circle,
-                    contentDescription = if (allSelected) "取消选择这一组" else "选择这一组",
-                    tint = if (allSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+        // 始终预留操作区高度，进入多选时分组标题不能把下面的照片挤走。
+        Box(Modifier.size(48.dp)) {
+            if (showSelect) {
+                IconButton(onClick = { onToggle(!allSelected) }) {
+                    Icon(
+                        if (allSelected) Symbols.CheckCircleFilled else Symbols.Circle,
+                        contentDescription = if (allSelected) "取消选择这一组" else "选择这一组",
+                        tint = if (allSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }
@@ -206,6 +245,7 @@ private fun SectionHeader(section: PhotoSection, showSelect: Boolean, allSelecte
 /** 触摸由网格统一处理，这里只为无障碍服务提供点按与长按操作。 */
 @Composable
 private fun PhotoGridItem(
+    sourceKey: String?,
     entry: PhotoEntry,
     selected: Boolean,
     selecting: Boolean,
@@ -213,12 +253,16 @@ private fun PhotoGridItem(
     onActivate: () -> Unit,
     onSelect: () -> Unit,
 ) {
+    val returnState = LocalPhotoGridReturnState.current
     val spatial = MaterialTheme.motionScheme.fastSpatialSpec<Dp>()
-    val inset by animateDpAsState(if (selected) 10.dp else 0.dp, spatial, label = "photo_inset")
+    val animatedInset by animateDpAsState(if (selected) 10.dp else 0.dp, spatial, label = "photo_inset")
+    // 取消选择时弹簧会越过 0；Padding 不接受负数，视觉边界必须限制在有效范围内。
+    val inset = animatedInset.coerceAtLeast(0.dp)
     val corner by animateDpAsState(if (selected) 16.dp else 6.dp, spatial, label = "photo_corner")
     val course = entry.course
     Box(
         Modifier.aspectRatio(1f)
+            .graphicsLayer { alpha = if (returnState?.hides(sourceKey, entry.id) == true) 0f else 1f }
             .background(
                 if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent,
                 RoundedCornerShape(6.dp),
@@ -240,7 +284,11 @@ private fun PhotoGridItem(
                 }
             },
     ) {
-        PhotoImage(entry.photo.uri, Modifier.fillMaxSize().padding(inset), RoundedCornerShape(corner))
+        PhotoImage(
+            entry.photo.uri,
+            Modifier.fillMaxSize().padding(inset),
+            RoundedCornerShape(corner),
+        )
         if (selecting) SelectionMark(selected, Modifier.align(Alignment.TopStart).padding(6.dp))
         if (showCourseTag && course != null) {
             CourseTagPill(
@@ -274,10 +322,12 @@ private fun LazyGridState.photoIdAt(position: Offset): Long? =
 private class DragSelection(
     private val state: LazyGridState,
     private val haptics: HapticFeedback,
+    private val photoIdAt: (Offset) -> Long?,
     private val indexOf: (Long) -> Int?,
     private val idsBetween: (Int, Int) -> List<Long>,
     private val selection: () -> Set<Long>,
     private val onSelectionChange: (Set<Long>) -> Unit,
+    private val onRangeSelectionChange: (Boolean) -> Unit,
 ) {
     var autoScrollSpeed by mutableFloatStateOf(0f)
         private set
@@ -285,18 +335,21 @@ private class DragSelection(
     private var anchorIndex: Int? = null
     private var currentIndex: Int? = null
     private var baseSelection: Set<Long> = emptySet()
+    private var removing = false
     private var lastPosition = Offset.Zero
 
     /** 返回 false 表示长按位置不是照片，不进入拖动选择。 */
     fun start(position: Offset): Boolean {
-        val id = state.photoIdAt(position) ?: return false
+        val id = photoIdAt(position) ?: return false
         val index = indexOf(id) ?: return false
         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
         anchorIndex = index
         currentIndex = index
         lastPosition = position
         baseSelection = selection()
-        onSelectionChange(baseSelection + id)
+        onRangeSelectionChange(true)
+        removing = id in baseSelection
+        onSelectionChange(if (removing) baseSelection - id else baseSelection + id)
         return true
     }
 
@@ -314,17 +367,19 @@ private class DragSelection(
     /** 按手指当前位置下的照片更新选择范围；自动滚动时手指不动也需要调用。 */
     fun refresh() {
         val anchor = anchorIndex ?: return
-        val index = state.photoIdAt(lastPosition)?.let(indexOf) ?: return
+        val index = photoIdAt(lastPosition)?.let(indexOf) ?: return
         if (index == currentIndex) return
         currentIndex = index
         haptics.performHapticFeedback(HapticFeedbackType.SegmentFrequentTick)
-        onSelectionChange(baseSelection + idsBetween(minOf(anchor, index), maxOf(anchor, index)))
+        val range = idsBetween(minOf(anchor, index), maxOf(anchor, index)).toSet()
+        onSelectionChange(if (removing) baseSelection - range else baseSelection + range)
     }
 
     fun stop() {
         anchorIndex = null
         currentIndex = null
         autoScrollSpeed = 0f
+        onRangeSelectionChange(false)
     }
 }
 
@@ -336,6 +391,7 @@ private fun Modifier.photoGestures(
     state: LazyGridState,
     dragSelection: DragSelection,
     autoScrollThreshold: Float,
+    contentOrigin: () -> Offset,
     onTap: (Long) -> Unit,
 ): Modifier = pointerInput(state, dragSelection) {
     awaitEachGesture {
@@ -343,7 +399,7 @@ private fun Modifier.photoGestures(
         val longPress = awaitLongPressOrCancellation(down.id)
         if (longPress == null) {
             val up = currentEvent.changes.firstOrNull { it.id == down.id }
-            if (up != null && up.changedToUp() && !up.isConsumed) state.photoIdAt(up.position)?.let(onTap)
+            if (up != null && up.changedToUp() && !up.isConsumed) state.photoIdAt(up.position - contentOrigin())?.let(onTap)
             return@awaitEachGesture
         }
         if (!dragSelection.start(longPress.position)) return@awaitEachGesture

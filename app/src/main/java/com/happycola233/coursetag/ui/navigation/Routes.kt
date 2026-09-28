@@ -20,7 +20,7 @@ data object RenamePreviewRoute : Route
 data class CourseDetailRoute(val courseName: String) : Route
 
 @Serializable
-data class PhotoViewerRoute(val photoId: Long) : Route
+data class PhotoViewerRoute(val photoId: Long, val sourceKey: String? = null) : Route
 
 @Serializable
 data object NamingFormatRoute : Route

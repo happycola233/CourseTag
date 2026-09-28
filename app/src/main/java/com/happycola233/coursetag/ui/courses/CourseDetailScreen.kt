@@ -30,7 +30,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,6 +51,7 @@ import com.happycola233.coursetag.data.schedule.weeklySlots
 import com.happycola233.coursetag.domain.RenameRequest
 import com.happycola233.coursetag.ui.AppViewModel
 import com.happycola233.coursetag.ui.Navigator
+import com.happycola233.coursetag.ui.components.SelectionTopBar
 import com.happycola233.coursetag.ui.components.BackButton
 import com.happycola233.coursetag.ui.components.EmptyState
 import com.happycola233.coursetag.ui.components.LocalSnackbarHostState
@@ -64,6 +64,7 @@ import com.happycola233.coursetag.ui.navigation.PhotoViewerRoute
 import com.happycola233.coursetag.ui.navigation.RenamePreviewRoute
 import com.happycola233.coursetag.ui.photos.PhotoGrid
 import com.happycola233.coursetag.ui.photos.PhotoSection
+import com.happycola233.coursetag.ui.photos.coursePhotosGridKey
 import com.happycola233.coursetag.ui.photos.TooltipIcon
 import com.happycola233.coursetag.ui.photos.toRequest
 import com.happycola233.coursetag.ui.theme.AppSurfaces
@@ -77,6 +78,7 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
     val courses by viewModel.courses.collectAsStateWithLifecycle()
     val library by viewModel.library.collectAsStateWithLifecycle()
     val data by viewModel.data.collectAsStateWithLifecycle()
+    var rangeSelecting by remember { mutableStateOf(false) }
     // 修改名称后继续停留在本页，展示新名称下的课程。
     var name by rememberSaveable { mutableStateOf(courseName) }
     var pendingName by rememberSaveable { mutableStateOf<String?>(null) }
@@ -85,7 +87,7 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
     var renaming by rememberSaveable { mutableStateOf(false) }
     var deleting by rememberSaveable { mutableStateOf(false) }
     var picking by rememberSaveable { mutableStateOf(false) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior(canScroll = { !rangeSelecting })
 
     val summary = courses.firstOrNull { it.name == name }
     LaunchedEffect(summary, pendingName, courses) {
@@ -108,8 +110,8 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
     val slots = remember(data, summary) {
         summary?.course?.scheduleNames?.let { weeklySlots(data.schedules, it) }.orEmpty()
     }
-    val selecting = selection.isNotEmpty()
-    val selectedEntries = entries.filter { it.id in selection }
+    val selecting = selection.isNotEmpty() || rangeSelecting
+    val selectedEntries = remember(entries, selection) { entries.filter { it.id in selection } }
     BackHandler(enabled = selecting) { selection = emptySet() }
 
     fun openPreview(request: RenameRequest) {
@@ -123,15 +125,7 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
         containerColor = AppSurfaces.page,
         snackbarHost = { SnackbarHost(LocalSnackbarHostState.current) },
         topBar = {
-            if (selecting) {
-                TopAppBar(
-                    title = { Text("已选择 ${selection.size} 张", fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = { selection = emptySet() }) { Icon(Symbols.Close, contentDescription = "取消选择") }
-                    },
-                    colors = pageTopBarColors(),
-                )
-            } else {
+            SelectionTopBar(selecting, selection.size, onCancel = { selection = emptySet() }) {
                 MediumFlexibleTopAppBar(
                     title = { Text(name, fontWeight = FontWeight.Bold) },
                     subtitle = { Text(if (entries.isEmpty()) "暂无照片" else "${formatCount(entries.size)} 张照片") },
@@ -190,17 +184,19 @@ fun CourseDetailScreen(courseName: String, viewModel: AppViewModel, navigator: N
     ) { padding ->
         Box(Modifier.fillMaxSize().padding(top = padding.calculateTopPadding())) {
             PhotoGrid(
+                sourceKey = coursePhotosGridKey(name),
                 sections = sections,
                 selection = selection,
+                onRangeSelectionChange = { rangeSelecting = it },
                 onSelectionChange = { selection = it },
                 onOpen = { entry, ids ->
                     viewModel.viewerPhotoIds = ids
-                    navigator.open(PhotoViewerRoute(entry.id))
+                    navigator.open(PhotoViewerRoute(entry.id, coursePhotosGridKey(name)))
                 },
                 contentPadding = PaddingValues(
                     start = 12.dp,
                     end = 12.dp,
-                    bottom = padding.calculateBottomPadding() + if (selecting) 104.dp else 24.dp,
+                    bottom = padding.calculateBottomPadding() + 104.dp,
                 ),
                 showCourseTags = false,
                 header = {
