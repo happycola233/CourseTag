@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -163,23 +164,11 @@ fun EmptyState(
     }
 }
 
-private val avatarShapes = listOf(
-    MaterialShapes.Cookie6Sided,
-    MaterialShapes.Clover4Leaf,
-    MaterialShapes.Sunny,
-    MaterialShapes.Pentagon,
-    MaterialShapes.Cookie4Sided,
-    MaterialShapes.Gem,
-    MaterialShapes.Arch,
-    MaterialShapes.Puffy,
-)
-
-/** 课程头像：取课程名首字，按名称固定一种 Expressive 形状，便于在列表中快速区分。 */
+/** 课程头像：以统一圆形底色展示课程名首字。 */
 @Composable
 fun CourseAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 40.dp) {
-    val shape = avatarShapes[Math.floorMod(name.hashCode(), avatarShapes.size)].toShape()
     Box(
-        modifier.size(size).clip(shape).background(MaterialTheme.colorScheme.secondaryContainer),
+        modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.secondaryContainer),
         contentAlignment = Alignment.Center,
     ) {
         Text(
