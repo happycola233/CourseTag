@@ -11,8 +11,7 @@ Fill is 0 for regular symbols and 1 for symbols whose resource name ends with _f
 Modifications: SVG paths have been converted to Android VectorDrawable XML.
 The original path data is unchanged. The SVG viewBox origin is adapted with a
 group translation, the fill color is supplied by the UI, and directional
-symbols enable RTL auto-mirroring. The launcher foreground insets the filled
-sell path into the adaptive icon safe zone and colors it with the launcher color.
+symbols enable RTL auto-mirroring.
 
 The following source paths are relative to the fixed repository commit:
 
@@ -60,4 +59,3 @@ symbol_edit_note.xml <- symbols/web/edit_note/materialsymbolsrounded/edit_note_2
 symbol_article.xml <- symbols/web/article/materialsymbolsrounded/article_24px.svg
 symbol_image_search.xml <- symbols/web/image_search/materialsymbolsrounded/image_search_24px.svg
 symbol_done_all.xml <- symbols/web/done_all/materialsymbolsrounded/done_all_24px.svg
-ic_launcher_foreground.xml <- symbols/web/sell/materialsymbolsrounded/sell_fill1_24px.svg

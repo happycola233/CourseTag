@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 课签启动器图标背景：墨绿黑板。SVG 原稿 ic_launcher_background.svg 存放在本地 .devfiles/图标/（不入库）。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 中心偏左上的径向渐变，模拟黑板受光。 -->
+    <path android:pathData="M0,0h108v108h-108z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="radial"
+                android:centerX="48"
+                android:centerY="42"
+                android:gradientRadius="70"
+                android:startColor="#FF3A6754"
+                android:endColor="#FF1F3C32" />
+        </aapt:attr>
+    </path>
+    <!-- 擦过黑板后残留的几抹粉笔灰。 -->
+    <group
+        android:pivotX="34"
+        android:pivotY="80"
+        android:rotation="-12">
+        <path
+            android:fillAlpha="0.045"
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M10,80A24,6.5 0 1 1 58,80A24,6.5 0 1 1 10,80Z" />
+    </group>
+    <group
+        android:pivotX="80"
+        android:pivotY="28"
+        android:rotation="-18">
+        <path
+            android:fillAlpha="0.04"
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M62,28A18,5 0 1 1 98,28A18,5 0 1 1 62,28Z" />
+    </group>
+    <group
+        android:pivotX="72"
+        android:pivotY="72"
+        android:rotation="-10">
+        <path
+            android:fillAlpha="0.03"
+            android:fillColor="#FFFFFFFF"
+            android:pathData="M62,72A10,3 0 1 1 82,72A10,3 0 1 1 62,72Z" />
+    </group>
+</vector>

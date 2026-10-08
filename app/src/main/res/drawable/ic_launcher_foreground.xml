@@ -1,20 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Material Symbols Rounded / Google / Apache-2.0 / 27e9ef1dbeedc13d682fece4a58e1eda4cb0961a -->
-<!-- 内缩后，标签图形完全落在自适应图标中央的 66dp 安全区域内。 -->
-<inset xmlns:android="http://schemas.android.com/apk/res/android"
-    android:insetLeft="24%"
-    android:insetTop="24%"
-    android:insetRight="24%"
-    android:insetBottom="24%">
-    <vector
-        android:width="108dp"
-        android:height="108dp"
-        android:viewportWidth="960"
-        android:viewportHeight="960">
-        <group android:translateY="960">
-            <path
-                android:fillColor="@color/launcher_foreground"
-                android:pathData="M856-390 570-104q-12 12-27 18t-30 6q-15 0-30-6t-27-18L103-457q-11-11-17-25.5T80-513v-287q0-33 23.5-56.5T160-880h287q16 0 31 6.5t26 17.5l352 353q12 12 17.5 27t5.5 30q0 15-5.5 29.5T856-390ZM260-640q25 0 42.5-17.5T320-700q0-25-17.5-42.5T260-760q-25 0-42.5 17.5T200-700q0 25 17.5 42.5T260-640Z" />
-        </group>
-    </vector>
-</inset>
+<!-- 课签启动器图标前景：粉笔画的标签与黄色绳圈。SVG 原稿 ic_launcher_foreground.svg 存放在本地 .devfiles/图标/（不入库）。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 粉笔线条旁淡淡的重影，形成手绘质感。 -->
+    <group
+        android:translateX="0.9"
+        android:translateY="0.7">
+        <path
+            android:pathData="M38.82,40.86A4.5,4.5 0 0 1 43.7,36.77L59.9,38.19A4.5,4.5 0 0 1 62.96,39.78L78.79,58.65A4.5,4.5 0 0 1 78.24,64.99L60.62,79.78A4.5,4.5 0 0 1 54.28,79.22L38.44,60.35A4.5,4.5 0 0 1 37.41,57.07Z"
+            android:strokeAlpha="0.26"
+            android:strokeColor="#FFEEF1EA"
+            android:strokeLineJoin="round"
+            android:strokeWidth="1.4" />
+    </group>
+    <path
+        android:pathData="M38.82,40.86A4.5,4.5 0 0 1 43.7,36.77L59.9,38.19A4.5,4.5 0 0 1 62.96,39.78L78.79,58.65A4.5,4.5 0 0 1 78.24,64.99L60.62,79.78A4.5,4.5 0 0 1 54.28,79.22L38.44,60.35A4.5,4.5 0 0 1 37.41,57.07Z"
+        android:strokeAlpha="0.94"
+        android:strokeColor="#FFEEF1EA"
+        android:strokeLineJoin="round"
+        android:strokeWidth="3.4" />
+    <!-- 黄粉笔绳圈：穿过标签孔，越过尖端。 -->
+    <group
+        android:pivotX="40.09"
+        android:pivotY="39.12"
+        android:rotation="44.5">
+        <path
+            android:pathData="M28.89,39.12A11.2,3.7 0 1 1 51.29,39.12A11.2,3.7 0 1 1 28.89,39.12Z"
+            android:strokeAlpha="0.92"
+            android:strokeColor="#FFF6D365"
+            android:strokeWidth="2.2" />
+    </group>
+    <path
+        android:pathData="M44.39,46.72A3.5,3.5 0 1 1 51.39,46.72A3.5,3.5 0 1 1 44.39,46.72Z"
+        android:strokeColor="#FFF6D365"
+        android:strokeWidth="2.6" />
+</vector>

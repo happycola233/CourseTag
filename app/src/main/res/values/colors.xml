@@ -1,6 +1,5 @@
 <resources>
-    <!-- Android 11 没有系统动态色板，沿用 Material 3 基线配色；Android 12 起由系统色资源覆盖。 -->
+    <!-- 启动窗口配色。Android 11 没有系统动态色板，沿用 Material 3 基线配色；Android 12 起由系统色资源覆盖。 -->
     <color name="startup_background">#F3EDF7</color>
-    <color name="launcher_background">#EADDFF</color>
-    <color name="launcher_foreground">#6750A4</color>
+    <color name="startup_accent">#6750A4</color>
 </resources>

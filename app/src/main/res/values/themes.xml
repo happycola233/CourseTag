@@ -6,7 +6,7 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
-        <item name="android:colorAccent">@color/launcher_foreground</item>
+        <item name="android:colorAccent">@color/startup_accent</item>
     </style>
 
     <style name="Theme.CourseTag" parent="Theme.CourseTag.Base" />

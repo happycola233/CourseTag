@@ -5,6 +5,6 @@
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
-        <item name="android:colorAccent">@color/launcher_foreground</item>
+        <item name="android:colorAccent">@color/startup_accent</item>
     </style>
 </resources>
