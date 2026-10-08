@@ -48,6 +48,7 @@ private val licenses = listOf(
     License("AndroidX Core、Activity 与 Lifecycle", "https://developer.android.com/jetpack/androidx"),
     License("Kotlin 协程与序列化", "https://github.com/Kotlin"),
     License("Coil", "https://github.com/coil-kt/coil"),
+    License("Haze", "https://github.com/chrisbanes/haze"),
     License("lib-recur", "https://github.com/dmfs/lib-recur"),
 )
 

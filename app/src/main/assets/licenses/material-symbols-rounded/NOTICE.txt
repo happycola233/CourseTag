@@ -59,3 +59,10 @@ symbol_edit_note.xml <- symbols/web/edit_note/materialsymbolsrounded/edit_note_2
 symbol_article.xml <- symbols/web/article/materialsymbolsrounded/article_24px.svg
 symbol_image_search.xml <- symbols/web/image_search/materialsymbolsrounded/image_search_24px.svg
 symbol_done_all.xml <- symbols/web/done_all/materialsymbolsrounded/done_all_24px.svg
+
+The following symbols use the same variant and modifications, with source paths
+relative to commit bd8cb85bd4bad964fe6918f79665bb40c3a8efef:
+
+symbol_sort.xml <- symbols/web/sort/materialsymbolsrounded/sort_24px.svg
+symbol_visibility.xml <- symbols/web/visibility/materialsymbolsrounded/visibility_24px.svg
+symbol_visibility_off.xml <- symbols/web/visibility_off/materialsymbolsrounded/visibility_off_24px.svg
